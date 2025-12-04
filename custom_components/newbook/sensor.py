@@ -1,0 +1,442 @@
+"""Sensor platform for Newbook integration."""
+from __future__ import annotations
+
+from datetime import datetime
+import logging
+from typing import Any
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import (
+    DOMAIN,
+    ROOM_STATE_VACANT,
+)
+from .coordinator import NewbookDataUpdateCoordinator
+from .room_manager import RoomManager
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Newbook sensors from a config entry."""
+    coordinator: NewbookDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
+        "coordinator"
+    ]
+
+    # Create room manager if not exists
+    if "room_manager" not in hass.data[DOMAIN][entry.entry_id]:
+        hass.data[DOMAIN][entry.entry_id]["room_manager"] = RoomManager(
+            hass, entry.entry_id
+        )
+
+    room_manager: RoomManager = hass.data[DOMAIN][entry.entry_id]["room_manager"]
+
+    @callback
+    def async_add_sensors() -> None:
+        """Add sensors for all discovered rooms."""
+        entities = []
+        rooms = coordinator.get_all_rooms()
+
+        for room_id, room_info in rooms.items():
+            if not room_manager.is_room_discovered(room_id):
+                # Create all sensor types for this room
+                entities.extend(
+                    [
+                        NewbookRoomStatusSensor(coordinator, room_id, room_info),
+                        NewbookGuestNameSensor(coordinator, room_id, room_info),
+                        NewbookArrivalSensor(coordinator, room_id, room_info),
+                        NewbookDepartureSensor(coordinator, room_id, room_info),
+                        NewbookCurrentNightSensor(coordinator, room_id, room_info),
+                        NewbookTotalNightsSensor(coordinator, room_id, room_info),
+                        NewbookHeatingStartTimeSensor(coordinator, room_id, room_info),
+                        NewbookCoolingStartTimeSensor(coordinator, room_id, room_info),
+                        NewbookBookingReferenceSensor(coordinator, room_id, room_info),
+                        NewbookPaxSensor(coordinator, room_id, room_info),
+                    ]
+                )
+
+        if entities:
+            async_add_entities(entities)
+            # Mark rooms as discovered
+            for room_id in rooms:
+                if not room_manager.is_room_discovered(room_id):
+                    room_manager._discovered_rooms.add(room_id)
+
+    # Add sensors for initially discovered rooms
+    async_add_sensors()
+
+    # Listen for coordinator updates to discover new rooms
+    coordinator.async_add_listener(async_add_sensors)
+
+
+class NewbookRoomSensorBase(CoordinatorEntity, SensorEntity):
+    """Base class for Newbook room sensors."""
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._room_id = room_id
+        self._room_info = room_info
+        self._attr_has_entity_name = True
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        """Return device information for grouping entities."""
+        return {
+            "identifiers": {(DOMAIN, self._room_id)},
+            "name": self._room_info.get("site_name", f"Room {self._room_id}"),
+            "manufacturer": "Newbook",
+            "model": self._room_info.get("site_category_name", "Hotel Room"),
+            "suggested_area": f"Room {self._room_id}",
+        }
+
+    def _get_booking_data(self) -> dict[str, Any] | None:
+        """Get current booking data for the room."""
+        return self.coordinator.get_room_booking(self._room_id)
+
+
+class NewbookRoomStatusSensor(NewbookRoomSensorBase):
+    """Sensor for room booking status."""
+
+    _attr_icon = "mdi:bed"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_booking_status"
+        self._attr_name = "Booking Status"
+
+    @property
+    def native_value(self) -> str:
+        """Return the state of the sensor."""
+        booking = self._get_booking_data()
+        if not booking:
+            return ROOM_STATE_VACANT
+
+        # TODO: Implement proper state machine logic in Phase 5
+        # For now, return basic status
+        return booking.get("booking_status", ROOM_STATE_VACANT)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        booking = self._get_booking_data()
+        if not booking:
+            return {"occupied": False}
+
+        return {
+            "occupied": True,
+            "booking_id": booking.get("booking_id"),
+            "booking_status": booking.get("booking_status"),
+        }
+
+
+class NewbookGuestNameSensor(NewbookRoomSensorBase):
+    """Sensor for guest name."""
+
+    _attr_icon = "mdi:account"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_guest_name"
+        self._attr_name = "Guest Name"
+
+    @property
+    def native_value(self) -> str:
+        """Return the guest name or Vacant."""
+        booking = self._get_booking_data()
+        return booking.get("guest_name", "Vacant") if booking else "Vacant"
+
+
+class NewbookArrivalSensor(NewbookRoomSensorBase):
+    """Sensor for arrival datetime."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:airplane-landing"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_arrival"
+        self._attr_name = "Arrival"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the arrival datetime."""
+        booking = self._get_booking_data()
+        if not booking:
+            return None
+
+        arrival_str = booking.get("booking_arrival")
+        if arrival_str:
+            try:
+                return datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                return None
+        return None
+
+
+class NewbookDepartureSensor(NewbookRoomSensorBase):
+    """Sensor for departure datetime."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:airplane-takeoff"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_departure"
+        self._attr_name = "Departure"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the departure datetime."""
+        booking = self._get_booking_data()
+        if not booking:
+            return None
+
+        departure_str = booking.get("booking_departure")
+        if departure_str:
+            try:
+                return datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                return None
+        return None
+
+
+class NewbookCurrentNightSensor(NewbookRoomSensorBase):
+    """Sensor for current night of stay."""
+
+    _attr_icon = "mdi:weather-night"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_current_night"
+        self._attr_name = "Current Night"
+        self._attr_native_unit_of_measurement = "nights"
+
+    @property
+    def native_value(self) -> int:
+        """Return the current night number."""
+        booking = self._get_booking_data()
+        if not booking:
+            return 0
+
+        # Calculate current night based on arrival date
+        arrival_str = booking.get("booking_arrival")
+        if not arrival_str:
+            return 0
+
+        try:
+            arrival = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+            today = datetime.now()
+            nights_elapsed = (today.date() - arrival.date()).days + 1
+            return max(0, nights_elapsed)
+        except (ValueError, TypeError):
+            return 0
+
+
+class NewbookTotalNightsSensor(NewbookRoomSensorBase):
+    """Sensor for total nights in stay."""
+
+    _attr_icon = "mdi:calendar-range"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_total_nights"
+        self._attr_name = "Total Nights"
+        self._attr_native_unit_of_measurement = "nights"
+
+    @property
+    def native_value(self) -> int:
+        """Return the total nights of the stay."""
+        booking = self._get_booking_data()
+        if not booking:
+            return 0
+
+        arrival_str = booking.get("booking_arrival")
+        departure_str = booking.get("booking_departure")
+
+        if not arrival_str or not departure_str:
+            return 0
+
+        try:
+            arrival = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+            departure = datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+            nights = (departure.date() - arrival.date()).days
+            return max(0, nights)
+        except (ValueError, TypeError):
+            return 0
+
+
+class NewbookHeatingStartTimeSensor(NewbookRoomSensorBase):
+    """Sensor for heating start time."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:radiator"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_heating_start_time"
+        self._attr_name = "Heating Start Time"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the heating start time."""
+        # TODO: Implement proper calculation in Phase 3
+        # For now, just return arrival time minus 2 hours
+        booking = self._get_booking_data()
+        if not booking:
+            return None
+
+        arrival_str = booking.get("booking_arrival")
+        if arrival_str:
+            try:
+                arrival = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+                # Default 2 hour preheat
+                from datetime import timedelta
+                return arrival - timedelta(hours=2)
+            except (ValueError, TypeError):
+                return None
+        return None
+
+
+class NewbookCoolingStartTimeSensor(NewbookRoomSensorBase):
+    """Sensor for cooling start time."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:radiator-off"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_cooling_start_time"
+        self._attr_name = "Cooling Start Time"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the cooling start time."""
+        # TODO: Implement proper calculation in Phase 3
+        # For now, just return departure time
+        booking = self._get_booking_data()
+        if not booking:
+            return None
+
+        departure_str = booking.get("booking_departure")
+        if departure_str:
+            try:
+                return datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                return None
+        return None
+
+
+class NewbookBookingReferenceSensor(NewbookRoomSensorBase):
+    """Sensor for booking reference ID."""
+
+    _attr_icon = "mdi:identifier"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_booking_reference"
+        self._attr_name = "Booking Reference"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the booking reference ID."""
+        booking = self._get_booking_data()
+        return booking.get("booking_reference_id") if booking else None
+
+
+class NewbookPaxSensor(NewbookRoomSensorBase):
+    """Sensor for number of guests."""
+
+    _attr_icon = "mdi:account-multiple"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_pax"
+        self._attr_name = "Number of Guests"
+        self._attr_native_unit_of_measurement = "guests"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of guests."""
+        booking = self._get_booking_data()
+        return booking.get("pax", 0) if booking else 0
