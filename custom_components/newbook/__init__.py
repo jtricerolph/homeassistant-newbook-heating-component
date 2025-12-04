@@ -17,8 +17,16 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
+    SERVICE_FORCE_ROOM_TEMPERATURE,
+    SERVICE_REFRESH_BOOKINGS,
+    SERVICE_RETRY_UNRESPONSIVE_TRVS,
+    SERVICE_SET_ROOM_AUTO_MODE,
+    SERVICE_SYNC_ROOM_VALVES,
 )
 from .coordinator import NewbookDataUpdateCoordinator
+from .heating_controller import HeatingController
+from .services import async_register_services
+from .trv_monitor import TRVMonitor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,19 +66,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
-    # Store coordinator in hass data
+    # Create TRV monitor
+    trv_monitor = TRVMonitor(hass, config_dict)
+
+    # Create heating controller
+    heating_controller = HeatingController(hass, coordinator, trv_monitor, config_dict)
+
+    # Store everything in hass data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "client": client,
         "config": entry,
+        "trv_monitor": trv_monitor,
+        "heating_controller": heating_controller,
     }
 
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register services
-    await _async_register_services(hass)
+    await _async_register_services(hass, entry.entry_id)
+
+    # Setup coordinator listener to update heating when bookings change
+    async def _async_coordinator_updated():
+        """Handle coordinator updates."""
+        await heating_controller.async_update_all_rooms()
+
+    coordinator.async_add_listener(_async_coordinator_updated)
 
     # Setup update listener for options
     entry.async_on_unload(entry.add_update_listener(async_update_options))
