@@ -12,6 +12,16 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def normalize_room_id(room_id: str) -> str:
+    """Normalize room ID to valid entity ID format."""
+    # Remove any non-alphanumeric characters except underscores
+    normalized = "".join(c if c.isalnum() or c == "_" else "_" for c in str(room_id))
+    # Remove leading/trailing underscores
+    normalized = normalized.strip("_")
+    # Convert to lowercase
+    return normalized.lower()
+
+
 class RoomManager:
     """Manage room discovery and entity tracking."""
 
@@ -85,16 +95,6 @@ class RoomManager:
                 entity_reg.async_remove(entity_id)
 
             self._discovered_rooms.discard(room_id)
-
-    @staticmethod
-    def normalize_room_id(room_id: str) -> str:
-        """Normalize room ID to valid entity ID format."""
-        # Remove any non-alphanumeric characters except underscores
-        normalized = "".join(c if c.isalnum() or c == "_" else "_" for c in str(room_id))
-        # Remove leading/trailing underscores
-        normalized = normalized.strip("_")
-        # Convert to lowercase
-        return normalized.lower()
 
     @staticmethod
     def get_room_name(room_info: dict[str, Any]) -> str:
