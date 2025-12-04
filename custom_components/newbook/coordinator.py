@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import NewbookApiClient, NewbookApiError
+from .booking_processor import BookingProcessor
 from .const import (
     ACTIVE_BOOKING_STATUSES,
     DOMAIN,
@@ -23,6 +24,7 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         client: NewbookApiClient,
         update_interval: timedelta,
+        config: dict[str, Any],
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -32,11 +34,22 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=update_interval,
         )
         self.client = client
+        self.config = config
         self._sites: dict[str, dict[str, Any]] = {}
         self._bookings: dict[str, list[dict[str, Any]]] = {}
         self._tasks: dict[str, list[dict[str, Any]]] = {}
         self._last_sites_update: datetime | None = None
         self._rooms_discovered: bool = False
+        self._booking_processor: BookingProcessor | None = None
+
+    @property
+    def booking_processor(self) -> BookingProcessor:
+        """Get booking processor instance."""
+        if self._booking_processor is None:
+            # Get room settings from hass.data
+            room_settings = self.hass.data[DOMAIN].get("room_settings", {})
+            self._booking_processor = BookingProcessor(self.config, room_settings)
+        return self._booking_processor
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Newbook API."""

@@ -44,11 +44,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = async_get_clientsession(hass)
     client = NewbookApiClient(username, password, api_key, region, session)
 
+    # Prepare config dict for coordinator and booking processor
+    config_dict = {**entry.data, **entry.options}
+
     # Create data update coordinator
     coordinator = NewbookDataUpdateCoordinator(
         hass,
         client,
         scan_interval,
+        config_dict,
     )
 
     # Fetch initial data
