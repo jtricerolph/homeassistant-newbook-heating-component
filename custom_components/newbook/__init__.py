@@ -24,6 +24,7 @@ from .const import (
     SERVICE_SYNC_ROOM_VALVES,
 )
 from .coordinator import NewbookDataUpdateCoordinator
+from .dashboard_generator import DashboardGenerator
 from .heating_controller import HeatingController
 from .services import async_register_services
 from .trv_monitor import TRVMonitor
@@ -72,6 +73,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Create heating controller
     heating_controller = HeatingController(hass, coordinator, trv_monitor, config_dict)
 
+    # Create dashboard generator
+    dashboard_generator = DashboardGenerator(hass)
+
     # Store everything in hass data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -80,6 +84,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config": entry,
         "trv_monitor": trv_monitor,
         "heating_controller": heating_controller,
+        "dashboard_generator": dashboard_generator,
     }
 
     # Setup platforms
@@ -95,6 +100,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator.async_add_listener(_async_coordinator_updated)
 
+    # Generate dashboards after platforms are set up
+    rooms = coordinator.get_all_rooms()
+    if rooms:
+        _LOGGER.info("Generating dashboards for %d discovered rooms", len(rooms))
+        await dashboard_generator.async_generate_all_dashboards(rooms)
+    else:
+        _LOGGER.warning("No rooms discovered yet, dashboards will be generated on next update")
+
     # Setup update listener for options
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
@@ -105,6 +118,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading Newbook integration")
+
+    # Delete generated dashboards
+    dashboard_generator = hass.data[DOMAIN][entry.entry_id].get("dashboard_generator")
+    if dashboard_generator:
+        await dashboard_generator.async_delete_all_dashboards()
 
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

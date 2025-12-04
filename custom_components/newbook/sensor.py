@@ -43,6 +43,15 @@ async def async_setup_entry(
 
     room_manager: RoomManager = hass.data[DOMAIN][entry.entry_id]["room_manager"]
 
+    # Create system-level sensors (created once)
+    system_entities = [
+        NewbookSystemStatusSensor(coordinator, entry.entry_id),
+        NewbookLastUpdateSensor(coordinator, entry.entry_id),
+        NewbookRoomsDiscoveredSensor(coordinator, entry.entry_id),
+        NewbookActiveBookingsSensor(coordinator, entry.entry_id),
+    ]
+    async_add_entities(system_entities)
+
     @callback
     def async_add_sensors() -> None:
         """Add sensors for all discovered rooms."""
@@ -64,6 +73,7 @@ async def async_setup_entry(
                         NewbookCoolingStartTimeSensor(coordinator, room_id, room_info),
                         NewbookBookingReferenceSensor(coordinator, room_id, room_info),
                         NewbookPaxSensor(coordinator, room_id, room_info),
+                        NewbookRoomStateSensor(coordinator, room_id, room_info),
                     ]
                 )
 
@@ -440,3 +450,162 @@ class NewbookPaxSensor(NewbookRoomSensorBase):
         """Return the number of guests."""
         booking = self._get_booking_data()
         return booking.get("pax", 0) if booking else 0
+
+
+class NewbookRoomStateSensor(NewbookRoomSensorBase):
+    """Sensor for room state."""
+
+    _attr_icon = "mdi:state-machine"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        room_id: str,
+        room_info: dict[str, Any],
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, room_id, room_info)
+        self._attr_unique_id = f"{DOMAIN}_{room_id}_room_state"
+        self._attr_name = "Room State"
+
+    @property
+    def native_value(self) -> str:
+        """Return the current room state."""
+        from .const import DOMAIN as DOMAIN_CONST
+        heating_controller = self.hass.data.get(DOMAIN_CONST, {}).get(
+            list(self.hass.data.get(DOMAIN_CONST, {}).keys())[0] if self.hass.data.get(DOMAIN_CONST) else None, {}
+        ).get("heating_controller")
+
+        if heating_controller:
+            return heating_controller.get_room_state(self._room_id)
+        return ROOM_STATE_VACANT
+
+
+class NewbookSystemSensorBase(CoordinatorEntity, SensorEntity):
+    """Base class for Newbook system sensors."""
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        entry_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._entry_id = entry_id
+        self._attr_has_entity_name = False
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        """Return device info."""
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": "Newbook Hotel Management",
+            "manufacturer": "Newbook",
+            "model": "Hotel Heating Integration",
+        }
+
+
+class NewbookSystemStatusSensor(NewbookSystemSensorBase):
+    """Sensor for system status."""
+
+    _attr_icon = "mdi:information"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        entry_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_system_status"
+        self._attr_name = "Newbook System Status"
+
+    @property
+    def native_value(self) -> str:
+        """Return the system status."""
+        if self.coordinator.last_update_success:
+            return "Online"
+        return "Offline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional state attributes."""
+        return {
+            "last_update_success": self.coordinator.last_update_success,
+            "last_update": self.coordinator.last_update_success_time,
+        }
+
+
+class NewbookLastUpdateSensor(NewbookSystemSensorBase):
+    """Sensor for last update time."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-outline"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        entry_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_last_update"
+        self._attr_name = "Newbook Last Update"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the last update time."""
+        return self.coordinator.last_update_success_time
+
+
+class NewbookRoomsDiscoveredSensor(NewbookSystemSensorBase):
+    """Sensor for number of discovered rooms."""
+
+    _attr_icon = "mdi:bed-empty"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "rooms"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        entry_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_rooms_discovered"
+        self._attr_name = "Newbook Rooms Discovered"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of discovered rooms."""
+        rooms = self.coordinator.get_all_rooms()
+        return len(rooms)
+
+
+class NewbookActiveBookingsSensor(NewbookSystemSensorBase):
+    """Sensor for number of active bookings."""
+
+    _attr_icon = "mdi:calendar-check"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "bookings"
+
+    def __init__(
+        self,
+        coordinator: NewbookDataUpdateCoordinator,
+        entry_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_active_bookings"
+        self._attr_name = "Newbook Active Bookings"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of active bookings."""
+        if not self.coordinator.data:
+            return 0
+
+        bookings = self.coordinator.data.get("bookings", [])
+        # Count bookings that are not "departed"
+        active = [b for b in bookings if b.get("booking_status", "").lower() != "departed"]
+        return len(active)
