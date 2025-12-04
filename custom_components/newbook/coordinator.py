@@ -137,6 +137,40 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
                 if site_id not in self._bookings:
                     self._bookings[site_id] = []
 
+                # Extract guest information from guests array
+                guest_name = "Unknown"
+                guest_email = None
+                guest_phone = None
+
+                guests = booking.get("guests", [])
+                if guests:
+                    # Find primary guest
+                    primary_guest = None
+                    for guest in guests:
+                        if guest.get("primary_client") == "1":
+                            primary_guest = guest
+                            break
+                    if not primary_guest and guests:
+                        primary_guest = guests[0]
+
+                    if primary_guest:
+                        firstname = primary_guest.get("firstname", "")
+                        lastname = primary_guest.get("lastname", "")
+                        guest_name = f"{firstname} {lastname}".strip() or "Unknown"
+
+                        # Extract contact details
+                        contact_details = primary_guest.get("contact_details", [])
+                        for contact in contact_details:
+                            if contact.get("type") == "email" and not guest_email:
+                                guest_email = contact.get("content")
+                            elif contact.get("type") in ["mobile", "phone"] and not guest_phone:
+                                guest_phone = contact.get("content")
+
+                # Calculate pax from booking_adults, booking_children, booking_infants
+                pax = int(booking.get("booking_adults", 0) or 0) + \
+                      int(booking.get("booking_children", 0) or 0) + \
+                      int(booking.get("booking_infants", 0) or 0)
+
                 self._bookings[site_id].append({
                     "booking_id": booking.get("booking_id"),
                     "booking_reference_id": booking.get("booking_reference_id"),
@@ -146,11 +180,11 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
                     "booking_departure": booking.get("booking_departure"),
                     "booking_eta": booking.get("booking_eta"),
                     "booking_status": booking_status,
-                    "pax": booking.get("pax", 0),
-                    "guest_name": booking.get("guest_name", "Unknown"),
-                    "guest_email": booking.get("guest_email"),
-                    "guest_phone": booking.get("guest_phone"),
-                    "rate_plan_name": booking.get("rate_plan_name"),
+                    "pax": pax,
+                    "guest_name": guest_name,
+                    "guest_email": guest_email,
+                    "guest_phone": guest_phone,
+                    "rate_plan_name": booking.get("tariff_name"),
                     "notes": booking.get("notes", []),
                     "custom_fields": booking.get("custom_fields", []),
                 })

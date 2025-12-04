@@ -84,6 +84,14 @@ class NewbookApiClient:
                         _LOGGER.error("Newbook API error: %s", error_msg)
                         raise NewbookApiError(error_msg)
 
+                    # Unwrap Newbook API response format: {"success": "true", "data": [...]}
+                    if isinstance(data, dict) and "data" in data:
+                        if data.get("success") not in ["true", True]:
+                            error_msg = data.get("message", "API request failed")
+                            _LOGGER.error("Newbook API error: %s", error_msg)
+                            raise NewbookApiError(error_msg)
+                        return data["data"]
+
                     return data
 
         except aiohttp.ClientResponseError as err:
