@@ -1,0 +1,374 @@
+"""Config flow for Newbook Hotel Management integration."""
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+import aiohttp
+import voluptuous as vol
+
+from homeassistant import config_entries
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+from .api import NewbookApiClient, NewbookApiError, NewbookAuthError
+from .const import (
+    CONF_API_KEY,
+    CONF_BATTERY_CRITICAL_THRESHOLD,
+    CONF_BATTERY_WARNING_THRESHOLD,
+    CONF_COMMAND_TIMEOUT,
+    CONF_COOLING_OFFSET_MINUTES,
+    CONF_DEFAULT_ARRIVAL_TIME,
+    CONF_DEFAULT_DEPARTURE_TIME,
+    CONF_EXCLUDE_BATHROOM_DEFAULT,
+    CONF_HEATING_OFFSET_MINUTES,
+    CONF_MAX_RETRY_ATTEMPTS,
+    CONF_OCCUPIED_TEMPERATURE,
+    CONF_REGION,
+    CONF_SCAN_INTERVAL,
+    CONF_SYNC_SETPOINTS_DEFAULT,
+    CONF_VACANT_TEMPERATURE,
+    DEFAULT_ARRIVAL_TIME,
+    DEFAULT_BATTERY_CRITICAL,
+    DEFAULT_BATTERY_WARNING,
+    DEFAULT_COMMAND_TIMEOUT,
+    DEFAULT_COOLING_OFFSET,
+    DEFAULT_DEPARTURE_TIME,
+    DEFAULT_EXCLUDE_BATHROOM,
+    DEFAULT_HEATING_OFFSET,
+    DEFAULT_MAX_RETRY_ATTEMPTS,
+    DEFAULT_OCCUPIED_TEMP,
+    DEFAULT_REGION,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SYNC_SETPOINTS,
+    DEFAULT_VACANT_TEMP,
+    DOMAIN,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def validate_auth(
+    hass: HomeAssistant,
+    username: str,
+    password: str,
+    api_key: str,
+    region: str,
+) -> dict[str, Any]:
+    """Validate the API credentials."""
+    session = async_get_clientsession(hass)
+    client = NewbookApiClient(username, password, api_key, region, session)
+
+    try:
+        # Test connection
+        if not await client.test_connection():
+            return {"error": "cannot_connect"}
+
+        return {"title": f"Newbook ({username})"}
+
+    except NewbookAuthError:
+        return {"error": "invalid_auth"}
+    except NewbookApiError:
+        return {"error": "cannot_connect"}
+    except Exception:  # pylint: disable=broad-except
+        _LOGGER.exception("Unexpected exception")
+        return {"error": "unknown"}
+
+
+class NewbookConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Newbook Hotel Management."""
+
+    VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        self._data: dict[str, Any] = {}
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the initial step - API credentials."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Validate credentials
+            result = await validate_auth(
+                self.hass,
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+                user_input[CONF_API_KEY],
+                user_input[CONF_REGION],
+            )
+
+            if "error" in result:
+                errors["base"] = result["error"]
+            else:
+                # Check if already configured
+                await self.async_set_unique_id(user_input[CONF_USERNAME])
+                self._abort_if_unique_id_configured()
+
+                # Store data and move to next step
+                self._data.update(user_input)
+                return await self.async_step_polling()
+
+        # Show form
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME): str,
+                vol.Required(CONF_PASSWORD): str,
+                vol.Required(CONF_API_KEY): str,
+                vol.Required(CONF_REGION, default=DEFAULT_REGION): vol.In(
+                    ["au", "eu", "us", "nz"]
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
+    async def async_step_polling(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle polling configuration step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return await self.async_step_defaults()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SCAN_INTERVAL,
+                    default=DEFAULT_SCAN_INTERVAL.total_seconds() // 60,
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="polling",
+            data_schema=data_schema,
+        )
+
+    async def async_step_defaults(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle default room settings step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return await self.async_step_trv_monitoring()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DEFAULT_ARRIVAL_TIME,
+                    default=DEFAULT_ARRIVAL_TIME,
+                ): str,
+                vol.Required(
+                    CONF_DEFAULT_DEPARTURE_TIME,
+                    default=DEFAULT_DEPARTURE_TIME,
+                ): str,
+                vol.Required(
+                    CONF_HEATING_OFFSET_MINUTES,
+                    default=DEFAULT_HEATING_OFFSET,
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=720)),
+                vol.Required(
+                    CONF_COOLING_OFFSET_MINUTES,
+                    default=DEFAULT_COOLING_OFFSET,
+                ): vol.All(vol.Coerce(int), vol.Range(min=-180, max=180)),
+                vol.Required(
+                    CONF_OCCUPIED_TEMPERATURE,
+                    default=DEFAULT_OCCUPIED_TEMP,
+                ): vol.All(vol.Coerce(float), vol.Range(min=10.0, max=30.0)),
+                vol.Required(
+                    CONF_VACANT_TEMPERATURE,
+                    default=DEFAULT_VACANT_TEMP,
+                ): vol.All(vol.Coerce(float), vol.Range(min=5.0, max=25.0)),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="defaults",
+            data_schema=data_schema,
+        )
+
+    async def async_step_trv_monitoring(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle TRV monitoring settings step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return await self.async_step_valve_sync()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_MAX_RETRY_ATTEMPTS,
+                    default=DEFAULT_MAX_RETRY_ATTEMPTS,
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=20)),
+                vol.Required(
+                    CONF_COMMAND_TIMEOUT,
+                    default=DEFAULT_COMMAND_TIMEOUT,
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=300)),
+                vol.Required(
+                    CONF_BATTERY_WARNING_THRESHOLD,
+                    default=DEFAULT_BATTERY_WARNING,
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=50)),
+                vol.Required(
+                    CONF_BATTERY_CRITICAL_THRESHOLD,
+                    default=DEFAULT_BATTERY_CRITICAL,
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=30)),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="trv_monitoring",
+            data_schema=data_schema,
+        )
+
+    async def async_step_valve_sync(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle valve sync defaults step."""
+        if user_input is not None:
+            self._data.update(user_input)
+            # All data collected, create entry
+            return self.async_create_entry(
+                title=f"Newbook ({self._data[CONF_USERNAME]})",
+                data=self._data,
+            )
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SYNC_SETPOINTS_DEFAULT,
+                    default=DEFAULT_SYNC_SETPOINTS,
+                ): bool,
+                vol.Required(
+                    CONF_EXCLUDE_BATHROOM_DEFAULT,
+                    default=DEFAULT_EXCLUDE_BATHROOM,
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="valve_sync",
+            data_schema=data_schema,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle options flow for Newbook integration."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Get current config
+        current_config = {**self.config_entry.data, **self.config_entry.options}
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SCAN_INTERVAL,
+                    default=current_config.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds() // 60
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+                vol.Required(
+                    CONF_DEFAULT_ARRIVAL_TIME,
+                    default=current_config.get(
+                        CONF_DEFAULT_ARRIVAL_TIME, DEFAULT_ARRIVAL_TIME
+                    ),
+                ): str,
+                vol.Required(
+                    CONF_DEFAULT_DEPARTURE_TIME,
+                    default=current_config.get(
+                        CONF_DEFAULT_DEPARTURE_TIME, DEFAULT_DEPARTURE_TIME
+                    ),
+                ): str,
+                vol.Required(
+                    CONF_HEATING_OFFSET_MINUTES,
+                    default=current_config.get(
+                        CONF_HEATING_OFFSET_MINUTES, DEFAULT_HEATING_OFFSET
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=720)),
+                vol.Required(
+                    CONF_COOLING_OFFSET_MINUTES,
+                    default=current_config.get(
+                        CONF_COOLING_OFFSET_MINUTES, DEFAULT_COOLING_OFFSET
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=-180, max=180)),
+                vol.Required(
+                    CONF_OCCUPIED_TEMPERATURE,
+                    default=current_config.get(
+                        CONF_OCCUPIED_TEMPERATURE, DEFAULT_OCCUPIED_TEMP
+                    ),
+                ): vol.All(vol.Coerce(float), vol.Range(min=10.0, max=30.0)),
+                vol.Required(
+                    CONF_VACANT_TEMPERATURE,
+                    default=current_config.get(
+                        CONF_VACANT_TEMPERATURE, DEFAULT_VACANT_TEMP
+                    ),
+                ): vol.All(vol.Coerce(float), vol.Range(min=5.0, max=25.0)),
+                vol.Required(
+                    CONF_MAX_RETRY_ATTEMPTS,
+                    default=current_config.get(
+                        CONF_MAX_RETRY_ATTEMPTS, DEFAULT_MAX_RETRY_ATTEMPTS
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=20)),
+                vol.Required(
+                    CONF_COMMAND_TIMEOUT,
+                    default=current_config.get(
+                        CONF_COMMAND_TIMEOUT, DEFAULT_COMMAND_TIMEOUT
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=300)),
+                vol.Required(
+                    CONF_BATTERY_WARNING_THRESHOLD,
+                    default=current_config.get(
+                        CONF_BATTERY_WARNING_THRESHOLD, DEFAULT_BATTERY_WARNING
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=50)),
+                vol.Required(
+                    CONF_BATTERY_CRITICAL_THRESHOLD,
+                    default=current_config.get(
+                        CONF_BATTERY_CRITICAL_THRESHOLD, DEFAULT_BATTERY_CRITICAL
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=30)),
+                vol.Required(
+                    CONF_SYNC_SETPOINTS_DEFAULT,
+                    default=current_config.get(
+                        CONF_SYNC_SETPOINTS_DEFAULT, DEFAULT_SYNC_SETPOINTS
+                    ),
+                ): bool,
+                vol.Required(
+                    CONF_EXCLUDE_BATHROOM_DEFAULT,
+                    default=current_config.get(
+                        CONF_EXCLUDE_BATHROOM_DEFAULT, DEFAULT_EXCLUDE_BATHROOM
+                    ),
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+        )
