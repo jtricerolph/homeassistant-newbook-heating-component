@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -114,7 +115,7 @@ class NewbookRoomSensorBase(CoordinatorEntity, SensorEntity):
             "name": self._room_info.get("site_name", f"Room {self._room_id}"),
             "manufacturer": "Newbook",
             "model": self._room_info.get("site_category_name", "Hotel Room"),
-            "suggested_area": f"Room {self._room_id}",
+            "suggested_area": self._room_info.get("site_name", f"Room {self._room_id}"),
         }
 
     def _get_booking_data(self) -> dict[str, Any] | None:
@@ -213,7 +214,8 @@ class NewbookArrivalSensor(NewbookRoomSensorBase):
         arrival_str = booking.get("booking_arrival")
         if arrival_str:
             try:
-                return datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+                naive_dt = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+                return dt_util.as_local(naive_dt)
             except (ValueError, TypeError):
                 return None
         return None
@@ -246,7 +248,8 @@ class NewbookDepartureSensor(NewbookRoomSensorBase):
         departure_str = booking.get("booking_departure")
         if departure_str:
             try:
-                return datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+                naive_dt = datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+                return dt_util.as_local(naive_dt)
             except (ValueError, TypeError):
                 return None
         return None
@@ -360,9 +363,10 @@ class NewbookHeatingStartTimeSensor(NewbookRoomSensorBase):
         arrival_str = booking.get("booking_arrival")
         if arrival_str:
             try:
-                arrival = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
-                # Default 2 hour preheat
                 from datetime import timedelta
+                naive_dt = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
+                arrival = dt_util.as_local(naive_dt)
+                # Default 2 hour preheat
                 return arrival - timedelta(hours=2)
             except (ValueError, TypeError):
                 return None
@@ -398,7 +402,8 @@ class NewbookCoolingStartTimeSensor(NewbookRoomSensorBase):
         departure_str = booking.get("booking_departure")
         if departure_str:
             try:
-                return datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+                naive_dt = datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+                return dt_util.as_local(naive_dt)
             except (ValueError, TypeError):
                 return None
         return None
@@ -422,9 +427,9 @@ class NewbookBookingReferenceSensor(NewbookRoomSensorBase):
 
     @property
     def native_value(self) -> str | None:
-        """Return the booking reference ID."""
+        """Return the booking ID."""
         booking = self._get_booking_data()
-        return booking.get("booking_reference_id") if booking else None
+        return booking.get("booking_id") if booking else None
 
 
 class NewbookPaxSensor(NewbookRoomSensorBase):
