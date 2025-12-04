@@ -86,7 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register services
-    await _async_register_services(hass, entry.entry_id)
+    await async_register_services(hass, entry.entry_id)
 
     # Setup coordinator listener to update heating when bookings change
     async def _async_coordinator_updated():
@@ -121,12 +121,3 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def _async_register_services(hass: HomeAssistant) -> None:
-    """Register integration services."""
-    # TODO: Implement services in future phases
-    # - refresh_bookings
-    # - set_room_auto_mode
-    # - force_room_temperature
-    # - sync_room_valves
-    # - retry_unresponsive_trvs
-    pass
