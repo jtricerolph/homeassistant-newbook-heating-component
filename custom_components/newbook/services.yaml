@@ -1,0 +1,71 @@
+refresh_bookings:
+  name: Refresh bookings
+  description: Manually refresh booking data from Newbook API
+
+set_room_auto_mode:
+  name: Set room auto mode
+  description: Enable or disable automatic heating control for a room
+  fields:
+    room_id:
+      name: Room ID
+      description: The room ID (e.g., "101")
+      required: true
+      example: "101"
+      selector:
+        text:
+    enabled:
+      name: Enabled
+      description: Enable or disable auto mode
+      required: true
+      selector:
+        boolean:
+
+force_room_temperature:
+  name: Force room temperature
+  description: Force a specific temperature for a room (disables auto mode)
+  fields:
+    room_id:
+      name: Room ID
+      description: The room ID (e.g., "101")
+      required: true
+      example: "101"
+      selector:
+        text:
+    temperature:
+      name: Temperature
+      description: Target temperature in degrees Celsius
+      required: true
+      example: 22
+      selector:
+        number:
+          min: 5
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+
+sync_room_valves:
+  name: Sync room valves
+  description: Manually synchronize all valves in a room to the same temperature
+  fields:
+    room_id:
+      name: Room ID
+      description: The room ID (e.g., "101")
+      required: true
+      example: "101"
+      selector:
+        text:
+    temperature:
+      name: Temperature
+      description: Target temperature in degrees Celsius
+      required: true
+      example: 22
+      selector:
+        number:
+          min: 5
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+
+retry_unresponsive_trvs:
+  name: Retry unresponsive TRVs
+  description: Retry sending commands to all unresponsive TRV devices

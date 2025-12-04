@@ -530,10 +530,12 @@ class NewbookSystemStatusSensor(NewbookSystemSensorBase):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
-        return {
+        attrs = {
             "last_update_success": self.coordinator.last_update_success,
-            "last_update": self.coordinator.last_update_success_time,
         }
+        if self.coordinator.last_update_success:
+            attrs["last_update"] = self.coordinator.last_update
+        return attrs
 
 
 class NewbookLastUpdateSensor(NewbookSystemSensorBase):
@@ -555,7 +557,9 @@ class NewbookLastUpdateSensor(NewbookSystemSensorBase):
     @property
     def native_value(self) -> datetime | None:
         """Return the last update time."""
-        return self.coordinator.last_update_success_time
+        if self.coordinator.last_update_success:
+            return self.coordinator.last_update
+        return None
 
 
 class NewbookRoomsDiscoveredSensor(NewbookSystemSensorBase):
