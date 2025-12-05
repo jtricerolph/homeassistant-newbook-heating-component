@@ -95,6 +95,13 @@ class HeatingController:
         # Get booking data
         booking = self.coordinator.get_room_booking(room_id)
 
+        _LOGGER.debug(
+            "Room %s: async_update_room_heating - has booking: %s, booking_status: %s",
+            room_id,
+            booking is not None,
+            booking.get("booking_status") if booking else "N/A",
+        )
+
         # Calculate heating schedule
         booking_processor = self.coordinator.booking_processor
         schedule = booking_processor.calculate_heating_schedule(room_id, booking) if booking else {}
@@ -102,6 +109,13 @@ class HeatingController:
         # Determine current room state
         new_state = booking_processor.determine_room_state(room_id, booking, schedule)
         old_state = self._room_states.get(room_id, ROOM_STATE_VACANT)
+
+        _LOGGER.debug(
+            "Room %s: State calculation - old_state='%s', new_state='%s'",
+            room_id,
+            old_state,
+            new_state,
+        )
 
         # Check for booking status changes (walk-in, early arrival, early departure)
         if booking:
@@ -331,7 +345,14 @@ class HeatingController:
 
     def get_room_state(self, room_id: str) -> str:
         """Get current state for a room."""
-        return self._room_states.get(room_id, ROOM_STATE_VACANT)
+        state = self._room_states.get(room_id, ROOM_STATE_VACANT)
+        _LOGGER.debug(
+            "Room %s: get_room_state returning '%s' (cached states: %s)",
+            room_id,
+            state,
+            list(self._room_states.keys()),
+        )
+        return state
 
     def get_room_states_summary(self) -> dict[str, int]:
         """Get summary of room states."""
