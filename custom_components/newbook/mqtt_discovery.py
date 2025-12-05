@@ -191,20 +191,20 @@ class MQTTDiscoveryManager:
             "default_entity_id": f"climate.{entity_id}",
 
             # Mode control
-            "mode_cmd_t": f"{device.device_id}/thermostat/0/command/target_t",
+            "mode_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
             "mode_cmd_tpl": "{% if value == 'heat' %}{{'{\"enabled\": true}'}}{% else %}{{'{\"enabled\": false}'}}{% endif %}",
-            "mode_stat_t": f"{device.device_id}/status",
+            "mode_stat_t": f"shellies/{device.device_id}/status",
             "mode_stat_tpl": "{% if value_json.target_t.enabled %}heat{% else %}off{% endif %}",
             "modes": ["off", "heat"],
 
             # Temperature control
-            "temp_cmd_t": f"{device.device_id}/thermostat/0/command/target_t",
+            "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
             "temp_cmd_tpl": "{{'{\"value\": ' ~ value ~ '}'}}",
-            "temp_stat_t": f"{device.device_id}/status",
+            "temp_stat_t": f"shellies/{device.device_id}/status",
             "temp_stat_tpl": "{{ value_json.target_t.value }}",
 
             # Current temperature
-            "curr_temp_t": f"{device.device_id}/status",
+            "curr_temp_t": f"shellies/{device.device_id}/status",
             "curr_temp_tpl": "{{ value_json.tmp.value }}",
 
             # Temperature settings
@@ -257,7 +257,7 @@ class MQTTDiscoveryManager:
             "unique_id": f"shelly_{device.mac}_temperature",
             "name": f"Room {site_id} {location} Temperature".title(),
             "default_entity_id": f"sensor.room_{site_id}_{location}_temperature",
-            "stat_t": f"{device.device_id}/sensor/temperature",
+            "stat_t": f"shellies/{device.device_id}/sensor/temperature",
             "unit_of_measurement": "°C",
             "device_class": "temperature",
             "state_class": "measurement",
@@ -276,7 +276,7 @@ class MQTTDiscoveryManager:
             "unique_id": f"shelly_{device.mac}_humidity",
             "name": f"Room {site_id} {location} Humidity".title(),
             "default_entity_id": f"sensor.room_{site_id}_{location}_humidity",
-            "stat_t": f"{device.device_id}/sensor/humidity",
+            "stat_t": f"shellies/{device.device_id}/sensor/humidity",
             "unit_of_measurement": "%",
             "device_class": "humidity",
             "state_class": "measurement",
@@ -309,7 +309,7 @@ class MQTTDiscoveryManager:
 
     async def _async_subscribe_device_status(self, device: ShellyDevice) -> None:
         """Subscribe to device status for health monitoring."""
-        status_topic = f"{device.device_id}/status"
+        status_topic = f"shellies/{device.device_id}/status"
 
         @callback
         async def status_received(msg: mqtt.ReceiveMessage) -> None:
