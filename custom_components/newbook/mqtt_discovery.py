@@ -226,9 +226,11 @@ class MQTTDiscoveryManager:
 
             # Mode - TRV only supports heat mode (no on/off)
             "modes": ["heat"],
+            "mode_stat_t": f"shellies/{device.device_id}/status",
+            "mode_stat_tpl": "heat",  # Always heat since TRV is heat-only
 
             # Temperature control
-            "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
+            "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/target_t/set",
             "temp_cmd_tpl": "{{ value }}",
             "temp_stat_t": f"shellies/{device.device_id}/status",
             "temp_stat_tpl": "{{ value_json.target_t.value }}",
