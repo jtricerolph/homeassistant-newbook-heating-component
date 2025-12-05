@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 from typing import Any
 
 from homeassistant.components import mqtt
@@ -21,10 +20,6 @@ from .const import (
 from .shelly_detector import ShellyDetector, ShellyDevice
 
 _LOGGER = logging.getLogger(__name__)
-
-# Room pattern: room_{site_id}_{location}
-# Match anywhere in the device ID (handles custom MQTT prefixes like "shellytrv_room_101_bedroom")
-ROOM_PATTERN = re.compile(r"room_(\w+)_(\w+)", re.IGNORECASE)
 
 
 class MQTTDiscoveryManager:
@@ -112,13 +107,33 @@ class MQTTDiscoveryManager:
             _LOGGER.debug("Device %s already mapped", device.device_id)
             return
 
-        # Try to extract room info from device name
-        match = ROOM_PATTERN.search(device.name)
+        # Try to extract room info from device name by splitting on underscores
+        # Expected format: room_{site_id}_{location}[_{other}...]
+        parts = device.name.lower().split('_')
 
-        if match:
-            # Auto-map device
-            site_id = match.group(1)
-            location = match.group(2)
+        if len(parts) >= 3 and parts[0] == 'room':
+            # Extract site_id and location from 2nd and 3rd tokens
+            site_id = parts[1]
+            location = parts[2]
+
+            # Check for duplicate site_id + location mapping (different device, same name)
+            for existing_device_id, existing_mapping in self._mapped_devices.items():
+                if (existing_mapping["site_id"] == site_id and
+                    existing_mapping["location"] == location and
+                    existing_mapping["mac"] != device.mac):
+                    # Duplicate name detected - notify user and skip
+                    _LOGGER.warning(
+                        "Duplicate device name detected: %s (MAC: %s) has the same room mapping "
+                        "as existing device %s (MAC: %s)",
+                        device.device_id,
+                        device.mac,
+                        existing_device_id,
+                        existing_mapping["mac"]
+                    )
+                    await self._async_notify_duplicate_name(
+                        device, site_id, location, existing_device_id
+                    )
+                    return
 
             _LOGGER.info(
                 "Auto-mapping Shelly device %s to room %s, location %s",
@@ -187,7 +202,7 @@ class MQTTDiscoveryManager:
         # Build config payload
         config = {
             "unique_id": f"shelly_{device.mac}_climate",
-            "name": f"Room {site_id} {location}".title(),
+            "name": f"Room {site_id} {location.capitalize()}",
             "default_entity_id": f"climate.{entity_id}",
 
             # Mode control
@@ -217,7 +232,7 @@ class MQTTDiscoveryManager:
             # Device info
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Room {site_id} {location} TRV".title(),
+                "name": f"Room {site_id} {location.capitalize()} TRV",
                 "model": device.model,
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
@@ -259,7 +274,7 @@ class MQTTDiscoveryManager:
         temp_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_temp/config"
         temp_config = {
             "unique_id": f"shelly_{device.mac}_temperature",
-            "name": f"Room {site_id} {location} Temperature".title(),
+            "name": f"Room {site_id} {location.capitalize()} Temperature",
             "default_entity_id": f"sensor.room_{site_id}_{location}_temperature",
             "stat_t": f"shellies/{device.device_id}/sensor/temperature",
             "unit_of_measurement": "°C",
@@ -267,7 +282,7 @@ class MQTTDiscoveryManager:
             "state_class": "measurement",
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Room {site_id} {location} H&T".title(),
+                "name": f"Room {site_id} {location.capitalize()} H&T",
                 "model": device.model,
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
@@ -279,7 +294,7 @@ class MQTTDiscoveryManager:
         humidity_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_humidity/config"
         humidity_config = {
             "unique_id": f"shelly_{device.mac}_humidity",
-            "name": f"Room {site_id} {location} Humidity".title(),
+            "name": f"Room {site_id} {location.capitalize()} Humidity",
             "default_entity_id": f"sensor.room_{site_id}_{location}_humidity",
             "stat_t": f"shellies/{device.device_id}/sensor/humidity",
             "unit_of_measurement": "%",
@@ -287,7 +302,7 @@ class MQTTDiscoveryManager:
             "state_class": "measurement",
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Room {site_id} {location} H&T".title(),
+                "name": f"Room {site_id} {location.capitalize()} H&T",
                 "model": device.model,
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
@@ -327,7 +342,7 @@ class MQTTDiscoveryManager:
         battery_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_battery/config"
         battery_config = {
             "unique_id": f"shelly_{device.mac}_battery",
-            "name": f"Room {site_id} {location} TRV Battery".title(),
+            "name": f"Room {site_id} {location.capitalize()} TRV Battery",
             "default_entity_id": f"sensor.{entity_id_base}_trv_battery",
             "stat_t": f"shellies/{device.device_id}/info",
             "value_template": "{{ value_json.bat.value }}",
@@ -346,7 +361,7 @@ class MQTTDiscoveryManager:
         wifi_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_wifi/config"
         wifi_config = {
             "unique_id": f"shelly_{device.mac}_wifi_signal",
-            "name": f"Room {site_id} {location} TRV WiFi Signal".title(),
+            "name": f"Room {site_id} {location.capitalize()} TRV WiFi Signal",
             "default_entity_id": f"sensor.{entity_id_base}_trv_wifi_signal",
             "stat_t": f"shellies/{device.device_id}/info",
             "value_template": "{{ value_json.wifi_sta.rssi }}",
@@ -365,7 +380,7 @@ class MQTTDiscoveryManager:
         calibration_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/binary_sensor/{device.device_id}_calibrated/config"
         calibration_config = {
             "unique_id": f"shelly_{device.mac}_calibrated",
-            "name": f"Room {site_id} {location} TRV Calibration".title(),
+            "name": f"Room {site_id} {location.capitalize()} TRV Calibration",
             "default_entity_id": f"binary_sensor.{entity_id_base}_trv_calibration",
             "stat_t": f"shellies/{device.device_id}/info",
             "value_template": "{% if value_json.calibrated %}OFF{% else %}ON{% endif %}",
@@ -382,7 +397,7 @@ class MQTTDiscoveryManager:
         update_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/binary_sensor/{device.device_id}_update/config"
         update_config = {
             "unique_id": f"shelly_{device.mac}_update_available",
-            "name": f"Room {site_id} {location} TRV Update Available".title(),
+            "name": f"Room {site_id} {location.capitalize()} TRV Update Available",
             "default_entity_id": f"binary_sensor.{entity_id_base}_trv_update_available",
             "stat_t": f"shellies/{device.device_id}/info",
             "value_template": "{% if value_json.update.has_update %}ON{% else %}OFF{% endif %}",
@@ -477,6 +492,34 @@ class MQTTDiscoveryManager:
             info_topic,
             info_received,
             qos=1,
+        )
+
+    async def _async_notify_duplicate_name(
+        self,
+        device: ShellyDevice,
+        site_id: str,
+        location: str,
+        existing_device_id: str
+    ) -> None:
+        """Notify user when duplicate room name is detected."""
+        await self.hass.services.async_call(
+            "persistent_notification",
+            "create",
+            {
+                "title": "Duplicate Shelly Device Name",
+                "message": (
+                    f"Device '{device.device_id}' (MAC: {device.mac}) has the same name "
+                    f"as existing device '{existing_device_id}' (Room {site_id} {location.capitalize()}).\n\n"
+                    f"Please rename one device in Shelly settings to avoid conflicts."
+                ),
+                "notification_id": f"newbook_duplicate_name_{device.mac}",
+            },
+        )
+        _LOGGER.info(
+            "Created duplicate name notification for device %s (Room %s %s)",
+            device.device_id,
+            site_id,
+            location.capitalize()
         )
 
     async def _async_remove_discovery_config(self, device_id: str) -> None:
