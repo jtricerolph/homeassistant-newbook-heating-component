@@ -100,6 +100,24 @@ class MQTTDiscoveryManager:
         except Exception as err:
             _LOGGER.error("Error processing settings message: %s", err)
 
+    def _get_room_site_name(self, site_id: str) -> str | None:
+        """Get the Newbook room's site_name for area matching."""
+        try:
+            coordinator = self.hass.data.get(DOMAIN, {}).get(self.entry_id, {}).get("coordinator")
+            if not coordinator:
+                return None
+
+            rooms = coordinator.get_all_rooms()
+            for room_id, room_info in rooms.items():
+                if str(room_info.get("site_id")) == str(site_id):
+                    return room_info.get("site_name", f"Room {site_id}")
+
+            # Room not found in Newbook, use default
+            return f"Room {site_id}"
+        except Exception as err:
+            _LOGGER.warning("Failed to lookup room site_name for %s: %s", site_id, err)
+            return f"Room {site_id}"
+
     async def _async_process_device(self, device: ShellyDevice) -> None:
         """Process detected device and map to room if possible."""
         # Check if already mapped
@@ -196,6 +214,9 @@ class MQTTDiscoveryManager:
         location = mapping["location"]
         entity_id = f"room_{site_id}_{location}"
 
+        # Get the Newbook room's site_name for area matching
+        site_name = self._get_room_site_name(site_id)
+
         # Discovery topic
         discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/climate/{device.device_id}/config"
 
@@ -233,7 +254,7 @@ class MQTTDiscoveryManager:
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
                 "configuration_url": f"http://{device.ip}",
-                "suggested_area": f"Room {site_id}",
+                "suggested_area": site_name,
             },
         }
 
@@ -267,6 +288,9 @@ class MQTTDiscoveryManager:
         site_id = mapping["site_id"]
         location = mapping["location"]
 
+        # Get the Newbook room's site_name for area matching
+        site_name = self._get_room_site_name(site_id)
+
         # Temperature sensor
         temp_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_temp/config"
         temp_config = {
@@ -284,7 +308,7 @@ class MQTTDiscoveryManager:
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
                 "configuration_url": f"http://{device.ip}",
-                "suggested_area": f"Room {site_id}",
+                "suggested_area": site_name,
             },
         }
 
@@ -305,7 +329,7 @@ class MQTTDiscoveryManager:
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
                 "configuration_url": f"http://{device.ip}",
-                "suggested_area": f"Room {site_id}",
+                "suggested_area": site_name,
             },
         }
 
@@ -411,6 +435,23 @@ class MQTTDiscoveryManager:
             },
         }
 
+        # Valve position sensor
+        valve_position_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_valve_position/config"
+        valve_position_config = {
+            "unique_id": f"shelly_{device.mac}_valve_position",
+            "name": f"Room {site_id} {location.capitalize()} TRV Valve Position",
+            "default_entity_id": f"sensor.{entity_id_base}_trv_valve_position",
+            "stat_t": f"shellies/{device.device_id}/info",
+            "value_template": "{{ value_json.thermostats[0].pos }}",
+            "unit_of_measurement": "%",
+            "state_class": "measurement",
+            "entity_category": "diagnostic",
+            "icon": "mdi:valve",
+            "device": {
+                "identifiers": [f"shelly_{device.mac}"],
+            },
+        }
+
         _LOGGER.info("Publishing diagnostic sensor discovery configs for %s", device.device_id)
 
         # Publish all configs
@@ -442,6 +483,14 @@ class MQTTDiscoveryManager:
             self.hass,
             update_discovery_topic,
             json.dumps(update_config),
+            qos=1,
+            retain=True,
+        )
+
+        await mqtt.async_publish(
+            self.hass,
+            valve_position_discovery_topic,
+            json.dumps(valve_position_config),
             qos=1,
             retain=True,
         )
