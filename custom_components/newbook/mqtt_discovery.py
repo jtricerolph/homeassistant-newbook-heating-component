@@ -198,7 +198,7 @@ class MQTTDiscoveryManager:
             "modes": ["off", "heat"],
 
             # Temperature control
-            "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t/set",
+            "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
             "temp_cmd_tpl": "{{ value }}",
             "temp_stat_t": f"shellies/{device.device_id}/status",
             "temp_stat_tpl": "{{ value_json.target_t.value }}",
@@ -217,10 +217,11 @@ class MQTTDiscoveryManager:
             # Device info
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Shelly TRV {device.short_mac}",
+                "name": f"Room {site_id} {location} TRV".title(),
                 "model": device.model,
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
+                "configuration_url": f"http://{device.ip}",
             },
         }
 
@@ -241,6 +242,9 @@ class MQTTDiscoveryManager:
 
         # Subscribe to status for health monitoring
         await self._async_subscribe_device_status(device)
+
+        # Publish diagnostic sensors
+        await self._async_publish_diagnostic_sensors(device, mapping)
 
     async def _async_publish_sensor_config(
         self,
@@ -263,10 +267,11 @@ class MQTTDiscoveryManager:
             "state_class": "measurement",
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Shelly H&T {device.short_mac}",
+                "name": f"Room {site_id} {location} H&T".title(),
                 "model": device.model,
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
+                "configuration_url": f"http://{device.ip}",
             },
         }
 
@@ -282,10 +287,11 @@ class MQTTDiscoveryManager:
             "state_class": "measurement",
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Shelly H&T {device.short_mac}",
+                "name": f"Room {site_id} {location} H&T".title(),
                 "model": device.model,
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
+                "configuration_url": f"http://{device.ip}",
             },
         }
 
@@ -307,6 +313,128 @@ class MQTTDiscoveryManager:
             retain=True,
         )
 
+    async def _async_publish_diagnostic_sensors(
+        self,
+        device: ShellyDevice,
+        mapping: dict[str, Any]
+    ) -> None:
+        """Publish diagnostic sensor discovery configs for Shelly TRV."""
+        site_id = mapping["site_id"]
+        location = mapping["location"]
+        entity_id_base = f"room_{site_id}_{location}"
+
+        # Battery sensor
+        battery_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_battery/config"
+        battery_config = {
+            "unique_id": f"shelly_{device.mac}_battery",
+            "name": f"Room {site_id} {location} TRV Battery".title(),
+            "default_entity_id": f"sensor.{entity_id_base}_trv_battery",
+            "stat_t": f"shellies/{device.device_id}/info",
+            "value_template": "{{ value_json.bat.value }}",
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+            "state_class": "measurement",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": f"shellies/{device.device_id}/info",
+            "json_attributes_template": '{{ {"voltage": value_json.bat.voltage, "charging": value_json.charger} | tojson }}',
+            "device": {
+                "identifiers": [f"shelly_{device.mac}"],
+            },
+        }
+
+        # WiFi Signal sensor
+        wifi_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_wifi/config"
+        wifi_config = {
+            "unique_id": f"shelly_{device.mac}_wifi_signal",
+            "name": f"Room {site_id} {location} TRV WiFi Signal".title(),
+            "default_entity_id": f"sensor.{entity_id_base}_trv_wifi_signal",
+            "stat_t": f"shellies/{device.device_id}/info",
+            "value_template": "{{ value_json.wifi_sta.rssi }}",
+            "unit_of_measurement": "dBm",
+            "device_class": "signal_strength",
+            "state_class": "measurement",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": f"shellies/{device.device_id}/info",
+            "json_attributes_template": '{{ {"ssid": value_json.wifi_sta.ssid, "ip": value_json.wifi_sta.ip} | tojson }}',
+            "device": {
+                "identifiers": [f"shelly_{device.mac}"],
+            },
+        }
+
+        # Calibration status binary sensor
+        calibration_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/binary_sensor/{device.device_id}_calibrated/config"
+        calibration_config = {
+            "unique_id": f"shelly_{device.mac}_calibrated",
+            "name": f"Room {site_id} {location} TRV Calibration".title(),
+            "default_entity_id": f"binary_sensor.{entity_id_base}_trv_calibration",
+            "stat_t": f"shellies/{device.device_id}/info",
+            "value_template": "{% if value_json.calibrated %}OFF{% else %}ON{% endif %}",
+            "payload_on": "ON",
+            "payload_off": "OFF",
+            "device_class": "problem",
+            "entity_category": "diagnostic",
+            "device": {
+                "identifiers": [f"shelly_{device.mac}"],
+            },
+        }
+
+        # Update available binary sensor
+        update_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/binary_sensor/{device.device_id}_update/config"
+        update_config = {
+            "unique_id": f"shelly_{device.mac}_update_available",
+            "name": f"Room {site_id} {location} TRV Update Available".title(),
+            "default_entity_id": f"binary_sensor.{entity_id_base}_trv_update_available",
+            "stat_t": f"shellies/{device.device_id}/info",
+            "value_template": "{% if value_json.update.has_update %}ON{% else %}OFF{% endif %}",
+            "payload_on": "ON",
+            "payload_off": "OFF",
+            "device_class": "update",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": f"shellies/{device.device_id}/info",
+            "json_attributes_template": '{{ {"new_version": value_json.update.new_version, "old_version": value_json.update.old_version} | tojson }}',
+            "device": {
+                "identifiers": [f"shelly_{device.mac}"],
+            },
+        }
+
+        _LOGGER.info("Publishing diagnostic sensor discovery configs for %s", device.device_id)
+
+        # Publish all configs
+        await mqtt.async_publish(
+            self.hass,
+            battery_discovery_topic,
+            json.dumps(battery_config),
+            qos=1,
+            retain=True,
+        )
+
+        await mqtt.async_publish(
+            self.hass,
+            wifi_discovery_topic,
+            json.dumps(wifi_config),
+            qos=1,
+            retain=True,
+        )
+
+        await mqtt.async_publish(
+            self.hass,
+            calibration_discovery_topic,
+            json.dumps(calibration_config),
+            qos=1,
+            retain=True,
+        )
+
+        await mqtt.async_publish(
+            self.hass,
+            update_discovery_topic,
+            json.dumps(update_config),
+            qos=1,
+            retain=True,
+        )
+
+        # Subscribe to info topic for diagnostic data
+        await self._async_subscribe_device_info(device)
+
     async def _async_subscribe_device_status(self, device: ShellyDevice) -> None:
         """Subscribe to device status for health monitoring."""
         status_topic = f"shellies/{device.device_id}/status"
@@ -325,6 +453,29 @@ class MQTTDiscoveryManager:
             self.hass,
             status_topic,
             status_received,
+            qos=1,
+        )
+
+    async def _async_subscribe_device_info(self, device: ShellyDevice) -> None:
+        """Subscribe to device info for diagnostic data."""
+        info_topic = f"shellies/{device.device_id}/info"
+
+        @callback
+        async def info_received(msg: mqtt.ReceiveMessage) -> None:
+            """Handle device info update."""
+            try:
+                payload = json.loads(msg.payload)
+                _LOGGER.debug("Device %s info: battery=%s%%, WiFi=%sdBm",
+                             device.device_id,
+                             payload.get("bat", {}).get("value"),
+                             payload.get("wifi_sta", {}).get("rssi"))
+            except Exception as err:
+                _LOGGER.error("Error processing info for %s: %s", device.device_id, err)
+
+        await mqtt.async_subscribe(
+            self.hass,
+            info_topic,
+            info_received,
             qos=1,
         )
 
