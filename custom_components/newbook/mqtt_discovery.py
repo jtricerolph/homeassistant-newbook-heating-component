@@ -205,11 +205,6 @@ class MQTTDiscoveryManager:
             "precision": 0.1,
             "temperature_unit": "C",
 
-            # Availability
-            "avty_t": f"{device.device_id}/online",
-            "pl_avail": "true",
-            "pl_not_avail": "false",
-
             # Device info
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
@@ -257,9 +252,6 @@ class MQTTDiscoveryManager:
             "unit_of_measurement": "°C",
             "device_class": "temperature",
             "state_class": "measurement",
-            "avty_t": f"{device.device_id}/online",
-            "pl_avail": "true",
-            "pl_not_avail": "false",
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
                 "name": f"Shelly H&T {device.short_mac}",
@@ -279,9 +271,6 @@ class MQTTDiscoveryManager:
             "unit_of_measurement": "%",
             "device_class": "humidity",
             "state_class": "measurement",
-            "avty_t": f"{device.device_id}/online",
-            "pl_avail": "true",
-            "pl_not_avail": "false",
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
                 "name": f"Shelly H&T {device.short_mac}",
