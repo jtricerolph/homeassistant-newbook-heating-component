@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from datetime import timedelta
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import NewbookApiClient
@@ -31,6 +33,28 @@ from .services import async_register_services
 from .trv_monitor import TRVMonitor
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_create_room_areas(hass: HomeAssistant, rooms: dict[str, Any]) -> None:
+    """Create Home Assistant areas for each discovered room."""
+    area_reg = ar.async_get(hass)
+
+    for room_id, room_info in rooms.items():
+        area_name = room_info.get("site_name", f"Room {room_id}")
+
+        # Check if area already exists
+        existing_area = None
+        for area in area_reg.async_list_areas():
+            if area.name == area_name:
+                existing_area = area
+                break
+
+        if not existing_area:
+            # Create new area
+            _LOGGER.info("Creating area for %s", area_name)
+            area_reg.async_create(area_name)
+        else:
+            _LOGGER.debug("Area %s already exists", area_name)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -110,6 +134,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if rooms:
         _LOGGER.info("Generating dashboards for %d discovered rooms", len(rooms))
         await dashboard_generator.async_generate_all_dashboards(rooms)
+
+        # Create areas for all discovered rooms
+        await async_create_room_areas(hass, rooms)
     else:
         _LOGGER.warning("No rooms discovered yet, dashboards will be generated on next update")
 
