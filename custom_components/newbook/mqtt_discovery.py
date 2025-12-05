@@ -205,12 +205,8 @@ class MQTTDiscoveryManager:
             "name": f"Room {site_id} {location.capitalize()}",
             "default_entity_id": f"climate.{entity_id}",
 
-            # Mode control
-            "mode_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t/enabled",
-            "mode_cmd_tpl": '{% if value == "heat" %}1{% else %}0{% endif %}',
-            "mode_stat_t": f"shellies/{device.device_id}/status",
-            "mode_stat_tpl": "{% if value_json.target_t.enabled %}heat{% else %}off{% endif %}",
-            "modes": ["off", "heat"],
+            # Mode - TRV only supports heat mode (no on/off)
+            "modes": ["heat"],
 
             # Temperature control
             "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
