@@ -566,7 +566,8 @@ class NewbookLastUpdateSensor(NewbookSystemSensorBase):
             last_update_str = self.coordinator.data.get("last_update")
             if last_update_str:
                 try:
-                    return datetime.fromisoformat(last_update_str)
+                    naive_dt = datetime.fromisoformat(last_update_str)
+                    return dt_util.as_local(naive_dt)
                 except (ValueError, TypeError):
                     pass
         return None
