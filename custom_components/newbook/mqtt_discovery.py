@@ -135,29 +135,30 @@ class MQTTDiscoveryManager:
                 "mac": device.mac,
             }
 
+            # Store mapping BEFORE publishing to prevent duplicate processing
+            self._mapped_devices[device.device_id] = mapping
+
             # Publish discovery config
             await self._async_publish_discovery_config(device, mapping)
 
-            # Store mapping
-            self._mapped_devices[device.device_id] = mapping
-
         else:
-            # Device doesn't match pattern - add to unmapped
-            _LOGGER.warning(
-                "Shelly device %s (model: %s, MAC: %s) does not match room naming pattern 'room_{site_id}_{location}'. "
-                "Please rename the device or manually map it in the Newbook integration options.",
-                device.device_id,
-                device.model,
-                device.mac
-            )
-            self._unmapped_devices[device.device_id] = device
+            # Device doesn't match pattern - add to unmapped (if not already there)
+            if device.device_id not in self._unmapped_devices:
+                _LOGGER.warning(
+                    "Shelly device %s (model: %s, MAC: %s) does not match room naming pattern 'room_{site_id}_{location}'. "
+                    "Please rename the device or manually map it in the Newbook integration options.",
+                    device.device_id,
+                    device.model,
+                    device.mac
+                )
+                self._unmapped_devices[device.device_id] = device
 
-            # Dispatch event for UI notification
-            async_dispatcher_send(
-                self.hass,
-                f"{DOMAIN}_{self.entry_id}_unmapped_device",
-                device
-            )
+                # Dispatch event for UI notification
+                async_dispatcher_send(
+                    self.hass,
+                    f"{DOMAIN}_{self.entry_id}_unmapped_device",
+                    device
+                )
 
     async def _async_publish_discovery_config(
         self,
