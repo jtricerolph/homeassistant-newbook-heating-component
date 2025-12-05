@@ -233,6 +233,7 @@ class MQTTDiscoveryManager:
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
                 "configuration_url": f"http://{device.ip}",
+                "suggested_area": f"Room {site_id}",
             },
         }
 
@@ -283,6 +284,7 @@ class MQTTDiscoveryManager:
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
                 "configuration_url": f"http://{device.ip}",
+                "suggested_area": f"Room {site_id}",
             },
         }
 
@@ -303,6 +305,7 @@ class MQTTDiscoveryManager:
                 "manufacturer": "Shelly",
                 "sw_version": device.firmware,
                 "configuration_url": f"http://{device.ip}",
+                "suggested_area": f"Room {site_id}",
             },
         }
 
