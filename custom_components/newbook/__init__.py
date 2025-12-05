@@ -26,6 +26,7 @@ from .const import (
 from .coordinator import NewbookDataUpdateCoordinator
 from .dashboard_generator import DashboardGenerator
 from .heating_controller import HeatingController
+from .mqtt_discovery import MQTTDiscoveryManager
 from .services import async_register_services
 from .trv_monitor import TRVMonitor
 
@@ -76,6 +77,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Create dashboard generator
     dashboard_generator = DashboardGenerator(hass)
 
+    # Create MQTT discovery manager for Shelly devices
+    mqtt_discovery = MQTTDiscoveryManager(hass, entry.entry_id)
+
     # Store everything in hass data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -85,6 +89,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "trv_monitor": trv_monitor,
         "heating_controller": heating_controller,
         "dashboard_generator": dashboard_generator,
+        "mqtt_discovery": mqtt_discovery,
     }
 
     # Setup platforms
@@ -108,6 +113,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         _LOGGER.warning("No rooms discovered yet, dashboards will be generated on next update")
 
+    # Setup MQTT discovery for Shelly devices
+    await mqtt_discovery.async_setup()
+
     # Setup update listener for options
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
@@ -123,6 +131,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     dashboard_generator = hass.data[DOMAIN][entry.entry_id].get("dashboard_generator")
     if dashboard_generator:
         await dashboard_generator.async_delete_all_dashboards()
+
+    # Unload MQTT discovery
+    mqtt_discovery = hass.data[DOMAIN][entry.entry_id].get("mqtt_discovery")
+    if mqtt_discovery:
+        await mqtt_discovery.async_unload()
 
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

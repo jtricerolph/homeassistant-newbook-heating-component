@@ -83,6 +83,12 @@ TRV_HEALTH_UNRESPONSIVE: Final = "unresponsive"
 MQTT_TOPIC_PATTERN: Final = "shellies/room-{room_id}-{location}-trv/#"
 MQTT_SETPOINT_TOPIC: Final = "shellies/room-{room_id}-{location}-trv/thermostat/0/target_t"
 
+# Shelly MQTT Autodiscovery
+MQTT_DISCOVERY_PREFIX: Final = "homeassistant"
+SHELLY_ANNOUNCE_TOPIC: Final = "shellies/announce"
+SHELLY_ONLINE_TOPIC: Final = "shellies/+/online"
+SHELLY_STATUS_TOPIC: Final = "shellies/+/status"
+
 # TRV Command Sources
 TRV_SOURCE_BUTTON: Final = "button"
 TRV_SOURCE_WS: Final = "WS"

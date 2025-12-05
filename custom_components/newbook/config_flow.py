@@ -278,7 +278,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage the options."""
+        """Manage the options - show menu."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["general_settings", "map_shelly_devices"],
+        )
+
+    async def async_step_general_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage general settings."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -369,6 +378,67 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         return self.async_show_form(
-            step_id="init",
+            step_id="general_settings",
             data_schema=data_schema,
+        )
+
+    async def async_step_map_shelly_devices(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Map unmapped Shelly devices to rooms."""
+        # Get MQTT discovery manager
+        mqtt_discovery = self.hass.data[DOMAIN][self._config_entry.entry_id].get("mqtt_discovery")
+        if not mqtt_discovery:
+            return self.async_abort(reason="mqtt_discovery_not_available")
+
+        # Get unmapped devices
+        unmapped_devices = mqtt_discovery.get_unmapped_devices()
+
+        if not unmapped_devices:
+            return self.async_abort(reason="no_unmapped_devices")
+
+        if user_input is not None:
+            # Process mapping
+            device_id = user_input.get("device_id")
+            site_id = user_input.get("site_id")
+            location = user_input.get("location")
+
+            if device_id and site_id and location:
+                success = await mqtt_discovery.async_manual_map_device(
+                    device_id, site_id, location
+                )
+                if success:
+                    return self.async_create_entry(title="", data={})
+
+            return self.async_abort(reason="mapping_failed")
+
+        # Get coordinator to get available rooms
+        coordinator = self.hass.data[DOMAIN][self._config_entry.entry_id]["coordinator"]
+        rooms = coordinator.get_all_rooms()
+
+        # Create device selection schema
+        device_options = {
+            device.device_id: f"{device.model} - {device.mac} ({device.ip})"
+            for device in unmapped_devices
+        }
+
+        if not device_options:
+            return self.async_abort(reason="no_unmapped_devices")
+
+        # For simplicity, just show a text input for site_id and location
+        # In a more advanced UI, these could be dropdowns
+        data_schema = vol.Schema(
+            {
+                vol.Required("device_id"): vol.In(device_options),
+                vol.Required("site_id"): str,
+                vol.Required("location"): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="map_shelly_devices",
+            data_schema=data_schema,
+            description_placeholders={
+                "unmapped_count": str(len(unmapped_devices)),
+            },
         )

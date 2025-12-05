@@ -62,6 +62,13 @@
     "step": {
       "init": {
         "title": "Newbook Options",
+        "menu_options": {
+          "general_settings": "General Settings",
+          "map_shelly_devices": "Map Shelly Devices"
+        }
+      },
+      "general_settings": {
+        "title": "General Settings",
         "description": "Update integration settings",
         "data": {
           "scan_interval": "Refresh interval (minutes)",
@@ -78,7 +85,21 @@
           "sync_setpoints_default": "Sync room setpoints by default",
           "exclude_bathroom_default": "Exclude bathroom from sync by default"
         }
+      },
+      "map_shelly_devices": {
+        "title": "Map Shelly Devices",
+        "description": "Map unmapped Shelly devices to rooms. Devices that match the pattern 'room_{site_id}_{location}' are automatically mapped. {unmapped_count} device(s) need manual mapping.",
+        "data": {
+          "device_id": "Shelly Device",
+          "site_id": "Room Number (Site ID)",
+          "location": "Location (e.g., bedroom, lounge, bathroom)"
+        }
       }
+    },
+    "abort": {
+      "no_unmapped_devices": "All Shelly devices are already mapped to rooms",
+      "mapping_failed": "Failed to map device to room",
+      "mqtt_discovery_not_available": "MQTT discovery is not available"
     }
   }
 }
