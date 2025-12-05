@@ -64,17 +64,17 @@ async def async_setup_entry(
                 # Create all sensor types for this room
                 entities.extend(
                     [
-                        NewbookRoomStatusSensor(coordinator, room_id, room_info),
-                        NewbookGuestNameSensor(coordinator, room_id, room_info),
-                        NewbookArrivalSensor(coordinator, room_id, room_info),
-                        NewbookDepartureSensor(coordinator, room_id, room_info),
-                        NewbookCurrentNightSensor(coordinator, room_id, room_info),
-                        NewbookTotalNightsSensor(coordinator, room_id, room_info),
-                        NewbookHeatingStartTimeSensor(coordinator, room_id, room_info),
-                        NewbookCoolingStartTimeSensor(coordinator, room_id, room_info),
-                        NewbookBookingReferenceSensor(coordinator, room_id, room_info),
-                        NewbookPaxSensor(coordinator, room_id, room_info),
-                        NewbookRoomStateSensor(coordinator, room_id, room_info),
+                        NewbookRoomStatusSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookGuestNameSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookArrivalSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookDepartureSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookCurrentNightSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookTotalNightsSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookHeatingStartTimeSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookCoolingStartTimeSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookBookingReferenceSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookPaxSensor(coordinator, room_id, room_info, entry.entry_id),
+                        NewbookRoomStateSensor(coordinator, room_id, room_info, entry.entry_id),
                     ]
                 )
 
@@ -100,11 +100,13 @@ class NewbookRoomSensorBase(CoordinatorEntity, SensorEntity):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._room_id = room_id
         self._room_info = room_info
+        self._entry_id = entry_id
         self._attr_has_entity_name = True
 
     @property
@@ -133,9 +135,10 @@ class NewbookRoomStatusSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_booking_status"
         self._attr_name = "Booking Status"
 
@@ -174,9 +177,10 @@ class NewbookGuestNameSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_guest_name"
         self._attr_name = "Guest Name"
 
@@ -198,9 +202,10 @@ class NewbookArrivalSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_arrival"
         self._attr_name = "Arrival"
 
@@ -232,9 +237,10 @@ class NewbookDepartureSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_departure"
         self._attr_name = "Departure"
 
@@ -266,9 +272,10 @@ class NewbookCurrentNightSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_current_night"
         self._attr_name = "Current Night"
         self._attr_native_unit_of_measurement = "nights"
@@ -305,9 +312,10 @@ class NewbookTotalNightsSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_total_nights"
         self._attr_name = "Total Nights"
         self._attr_native_unit_of_measurement = "nights"
@@ -345,9 +353,10 @@ class NewbookHeatingStartTimeSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_heating_start_time"
         self._attr_name = "Heating Start Time"
 
@@ -384,9 +393,10 @@ class NewbookCoolingStartTimeSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_cooling_start_time"
         self._attr_name = "Cooling Start Time"
 
@@ -419,9 +429,10 @@ class NewbookBookingReferenceSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_booking_reference"
         self._attr_name = "Booking Reference"
 
@@ -443,9 +454,10 @@ class NewbookPaxSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_pax"
         self._attr_name = "Number of Guests"
         self._attr_native_unit_of_measurement = "guests"
@@ -467,19 +479,18 @@ class NewbookRoomStateSensor(NewbookRoomSensorBase):
         coordinator: NewbookDataUpdateCoordinator,
         room_id: str,
         room_info: dict[str, Any],
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, room_id, room_info)
+        super().__init__(coordinator, room_id, room_info, entry_id)
         self._attr_unique_id = f"{DOMAIN}_{room_id}_room_state"
         self._attr_name = "Room State"
 
     @property
     def native_value(self) -> str:
         """Return the current room state."""
-        from .const import DOMAIN as DOMAIN_CONST
-        heating_controller = self.hass.data.get(DOMAIN_CONST, {}).get(
-            list(self.hass.data.get(DOMAIN_CONST, {}).keys())[0] if self.hass.data.get(DOMAIN_CONST) else None, {}
-        ).get("heating_controller")
+        # Access heating_controller from hass.data using entry_id
+        heating_controller = self.hass.data.get(DOMAIN, {}).get(self._entry_id, {}).get("heating_controller")
 
         if heating_controller:
             return heating_controller.get_room_state(self._room_id)
