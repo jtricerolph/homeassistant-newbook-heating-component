@@ -23,7 +23,8 @@ from .shelly_detector import ShellyDetector, ShellyDevice
 _LOGGER = logging.getLogger(__name__)
 
 # Room pattern: room_{site_id}_{location}
-ROOM_PATTERN = re.compile(r"^room_(\w+)_(\w+)$", re.IGNORECASE)
+# Match anywhere in the device ID (handles custom MQTT prefixes like "shellytrv_room_101_bedroom")
+ROOM_PATTERN = re.compile(r"room_(\w+)_(\w+)", re.IGNORECASE)
 
 
 class MQTTDiscoveryManager:
@@ -50,16 +51,18 @@ class MQTTDiscoveryManager:
         """Set up MQTT discovery."""
         try:
             # Subscribe to Shelly announce messages
+            # Use wildcard (+/announce) to catch both default (shellies/announce)
+            # and custom MQTT prefix devices (e.g., shellytrv_room_101_bedroom/announce)
             _LOGGER.info("Setting up Shelly MQTT autodiscovery")
 
             await mqtt.async_subscribe(
                 self.hass,
-                SHELLY_ANNOUNCE_TOPIC,
+                "+/announce",
                 self._async_announce_received,
                 qos=1,
             )
 
-            _LOGGER.info("Subscribed to Shelly announce topic: %s", SHELLY_ANNOUNCE_TOPIC)
+            _LOGGER.info("Subscribed to Shelly announce topic: +/announce")
             return True
 
         except Exception as err:
@@ -102,7 +105,7 @@ class MQTTDiscoveryManager:
             return
 
         # Try to extract room info from device name
-        match = ROOM_PATTERN.match(device.name)
+        match = ROOM_PATTERN.search(device.name)
 
         if match:
             # Auto-map device
