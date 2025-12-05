@@ -192,14 +192,14 @@ class MQTTDiscoveryManager:
 
             # Mode control
             "mode_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
-            "mode_cmd_tpl": "{% if value == 'heat' %}{{'{\"enabled\": true}'}}{% else %}{{'{\"enabled\": false}'}}{% endif %}",
+            "mode_cmd_tpl": '{% if value == "heat" %}{"enabled": true}{% else %}{"enabled": false}{% endif %}',
             "mode_stat_t": f"shellies/{device.device_id}/status",
             "mode_stat_tpl": "{% if value_json.target_t.enabled %}heat{% else %}off{% endif %}",
             "modes": ["off", "heat"],
 
             # Temperature control
             "temp_cmd_t": f"shellies/{device.device_id}/thermostat/0/command/target_t",
-            "temp_cmd_tpl": "{{'{\"value\": ' ~ value ~ '}'}}",
+            "temp_cmd_tpl": '{"value": {{ value }}}',
             "temp_stat_t": f"shellies/{device.device_id}/status",
             "temp_stat_tpl": "{{ value_json.target_t.value }}",
 
