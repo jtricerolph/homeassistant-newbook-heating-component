@@ -10,6 +10,9 @@ from .api import NewbookApiClient, NewbookApiError
 from .booking_processor import BookingProcessor
 from .const import (
     ACTIVE_BOOKING_STATUSES,
+    BOOKING_STATUS_ARRIVED,
+    BOOKING_STATUS_CONFIRMED,
+    BOOKING_STATUS_UNCONFIRMED,
     DOMAIN,
 )
 
@@ -61,14 +64,15 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
                 self._last_sites_update = datetime.now()
                 _LOGGER.debug("Updated sites: %d rooms discovered", len(self._sites))
 
-            # Fetch bookings for today and tomorrow
-            today = datetime.now().strftime("%Y-%m-%d")
-            tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            # Fetch bookings from yesterday to +7 days
+            # Include yesterday to capture guests departing today
+            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+            future = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
             # Get staying bookings (active only)
             bookings = await self.client.get_bookings(
-                period_from=f"{today} 00:00:00",
-                period_to=f"{tomorrow} 23:59:59",
+                period_from=f"{yesterday} 00:00:00",
+                period_to=f"{future} 23:59:59",
                 list_type="staying",
                 force_refresh=True,
             )
@@ -231,15 +235,35 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         return self._sites.copy()
 
     def get_room_booking(self, room_id: str) -> dict[str, Any] | None:
-        """Get current booking for a room (returns first active booking)."""
+        """Get current/next booking for a room using priority logic.
+
+        Priority:
+        1. Return "arrived" booking (current guest in room)
+        2. If no "arrived", return next "confirmed" or "unconfirmed" booking by arrival date
+        """
         bookings = self._bookings.get(room_id, [])
-        if bookings:
-            # Sort by arrival date and return the first one
+        if not bookings:
+            return None
+
+        # Priority 1: Find "arrived" booking (current guest)
+        for booking in bookings:
+            if booking.get("booking_status") == BOOKING_STATUS_ARRIVED:
+                return booking
+
+        # Priority 2: Find next "confirmed" or "unconfirmed" booking
+        # Sort by arrival date to get the next upcoming booking
+        upcoming_bookings = [
+            b for b in bookings
+            if b.get("booking_status") in [BOOKING_STATUS_CONFIRMED, BOOKING_STATUS_UNCONFIRMED]
+        ]
+
+        if upcoming_bookings:
             sorted_bookings = sorted(
-                bookings,
+                upcoming_bookings,
                 key=lambda x: x.get("booking_arrival", ""),
             )
             return sorted_bookings[0] if sorted_bookings else None
+
         return None
 
     def has_active_booking(self, room_id: str) -> bool:
