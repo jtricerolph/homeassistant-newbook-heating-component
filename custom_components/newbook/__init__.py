@@ -116,6 +116,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "mqtt_discovery": mqtt_discovery,
     }
 
+    # Perform initial room state calculation before sensors are created
+    _LOGGER.info("Calculating initial room states for %d rooms", len(coordinator.get_all_rooms()))
+    await heating_controller.async_update_all_rooms()
+
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
