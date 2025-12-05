@@ -538,8 +538,8 @@ class NewbookSystemStatusSensor(NewbookSystemSensorBase):
         attrs = {
             "last_update_success": self.coordinator.last_update_success,
         }
-        if self.coordinator.last_update_success:
-            attrs["last_update"] = self.coordinator.last_update
+        if self.coordinator.last_update_success and self.coordinator.data:
+            attrs["last_update"] = self.coordinator.data.get("last_update")
         return attrs
 
 
@@ -562,8 +562,13 @@ class NewbookLastUpdateSensor(NewbookSystemSensorBase):
     @property
     def native_value(self) -> datetime | None:
         """Return the last update time."""
-        if self.coordinator.last_update_success:
-            return self.coordinator.last_update
+        if self.coordinator.last_update_success and self.coordinator.data:
+            last_update_str = self.coordinator.data.get("last_update")
+            if last_update_str:
+                try:
+                    return datetime.fromisoformat(last_update_str)
+                except (ValueError, TypeError):
+                    pass
         return None
 
 
@@ -614,7 +619,12 @@ class NewbookActiveBookingsSensor(NewbookSystemSensorBase):
         if not self.coordinator.data:
             return 0
 
-        bookings = self.coordinator.data.get("bookings", [])
+        bookings_dict = self.coordinator.data.get("bookings", {})
+        # Bookings is a dict keyed by site_id, flatten to list
+        all_bookings = []
+        for site_bookings in bookings_dict.values():
+            all_bookings.extend(site_bookings)
+
         # Count bookings that are not "departed"
-        active = [b for b in bookings if b.get("booking_status", "").lower() != "departed"]
+        active = [b for b in all_bookings if b.get("booking_status", "").lower() != "departed"]
         return len(active)

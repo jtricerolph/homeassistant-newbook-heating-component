@@ -179,7 +179,7 @@ class MQTTDiscoveryManager:
         config = {
             "unique_id": f"shelly_{device.mac}_climate",
             "name": f"Room {site_id} {location}".title(),
-            "object_id": entity_id,
+            "default_entity_id": f"climate.{entity_id}",
 
             # Mode control
             "mode_cmd_t": f"{device.device_id}/thermostat/0/command/target_t",
@@ -252,7 +252,7 @@ class MQTTDiscoveryManager:
         temp_config = {
             "unique_id": f"shelly_{device.mac}_temperature",
             "name": f"Room {site_id} {location} Temperature".title(),
-            "object_id": f"room_{site_id}_{location}_temperature",
+            "default_entity_id": f"sensor.room_{site_id}_{location}_temperature",
             "stat_t": f"{device.device_id}/sensor/temperature",
             "unit_of_measurement": "°C",
             "device_class": "temperature",
@@ -274,7 +274,7 @@ class MQTTDiscoveryManager:
         humidity_config = {
             "unique_id": f"shelly_{device.mac}_humidity",
             "name": f"Room {site_id} {location} Humidity".title(),
-            "object_id": f"room_{site_id}_{location}_humidity",
+            "default_entity_id": f"sensor.room_{site_id}_{location}_humidity",
             "stat_t": f"{device.device_id}/sensor/humidity",
             "unit_of_measurement": "%",
             "device_class": "humidity",
