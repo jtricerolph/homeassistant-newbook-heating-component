@@ -6,10 +6,8 @@ from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
-# Supported Shelly device models
+# Supported Shelly device models (TRVs only)
 SHELLY_TRV_MODELS = ["SHTRV-01"]
-SHELLY_HT_MODELS = ["SHHT-1"]
-SHELLY_CLIMATE_MODELS = SHELLY_TRV_MODELS + SHELLY_HT_MODELS
 
 
 class ShellyDevice:
@@ -36,16 +34,6 @@ class ShellyDevice:
     def is_trv(self) -> bool:
         """Check if device is a TRV."""
         return self.model in SHELLY_TRV_MODELS
-
-    @property
-    def is_ht_sensor(self) -> bool:
-        """Check if device is H&T sensor."""
-        return self.model in SHELLY_HT_MODELS
-
-    @property
-    def is_climate_device(self) -> bool:
-        """Check if device is any climate-related device."""
-        return self.model in SHELLY_CLIMATE_MODELS
 
     @property
     def short_mac(self) -> str:
@@ -93,10 +81,10 @@ class ShellyDetector:
 
             device = ShellyDevice(payload)
 
-            # Only process climate-related devices
-            if not device.is_climate_device:
+            # Only process TRV devices
+            if not device.is_trv:
                 _LOGGER.debug(
-                    "Detected non-climate Shelly device %s (model: %s), skipping",
+                    "Detected non-TRV Shelly device %s (model: %s), skipping",
                     device.device_id,
                     device.model
                 )
@@ -180,10 +168,10 @@ class ShellyDetector:
             # Override the name with the settings name field
             device.name = device_name
 
-            # Only process climate-related devices
-            if not device.is_climate_device:
+            # Only process TRV devices
+            if not device.is_trv:
                 _LOGGER.debug(
-                    "Detected non-climate Shelly device %s (model: %s), skipping",
+                    "Detected non-TRV Shelly device %s (model: %s), skipping",
                     device.device_id,
                     device.model
                 )
@@ -215,9 +203,9 @@ class ShellyDetector:
         """Get all detected devices."""
         return list(self._devices.values())
 
-    def get_climate_devices(self) -> list[ShellyDevice]:
-        """Get all climate devices (TRVs, H&T)."""
-        return [d for d in self._devices.values() if d.is_climate_device]
+    def get_trv_devices(self) -> list[ShellyDevice]:
+        """Get all TRV devices."""
+        return [d for d in self._devices.values() if d.is_trv]
 
     def remove_device(self, device_id: str) -> None:
         """Remove device from tracking."""

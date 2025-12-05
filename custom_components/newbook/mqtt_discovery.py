@@ -198,11 +198,9 @@ class MQTTDiscoveryManager:
         device: ShellyDevice,
         mapping: dict[str, Any]
     ) -> None:
-        """Publish Home Assistant MQTT discovery config."""
+        """Publish Home Assistant MQTT discovery config for TRV."""
         if device.is_trv:
             await self._async_publish_climate_config(device, mapping)
-        elif device.is_ht_sensor:
-            await self._async_publish_sensor_config(device, mapping)
 
     async def _async_publish_climate_config(
         self,
@@ -278,78 +276,6 @@ class MQTTDiscoveryManager:
 
         # Publish diagnostic sensors
         await self._async_publish_diagnostic_sensors(device, mapping)
-
-    async def _async_publish_sensor_config(
-        self,
-        device: ShellyDevice,
-        mapping: dict[str, Any]
-    ) -> None:
-        """Publish sensor entity discovery config for Shelly H&T."""
-        site_id = mapping["site_id"]
-        location = mapping["location"]
-
-        # Get the Newbook room's site_name for area matching
-        site_name = self._get_room_site_name(site_id)
-
-        # Temperature sensor
-        temp_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_temp/config"
-        temp_config = {
-            "unique_id": f"shelly_{device.mac}_temperature",
-            "name": f"Room {site_id} {location.capitalize()} Temperature",
-            "default_entity_id": f"sensor.room_{site_id}_{location}_temperature",
-            "stat_t": f"shellies/{device.device_id}/sensor/temperature",
-            "unit_of_measurement": "°C",
-            "device_class": "temperature",
-            "state_class": "measurement",
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Room {site_id} {location.capitalize()} H&T",
-                "model": device.model,
-                "manufacturer": "Shelly",
-                "sw_version": device.firmware,
-                "configuration_url": f"http://{device.ip}",
-                "suggested_area": site_name,
-            },
-        }
-
-        # Humidity sensor
-        humidity_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_humidity/config"
-        humidity_config = {
-            "unique_id": f"shelly_{device.mac}_humidity",
-            "name": f"Room {site_id} {location.capitalize()} Humidity",
-            "default_entity_id": f"sensor.room_{site_id}_{location}_humidity",
-            "stat_t": f"shellies/{device.device_id}/sensor/humidity",
-            "unit_of_measurement": "%",
-            "device_class": "humidity",
-            "state_class": "measurement",
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-                "name": f"Room {site_id} {location.capitalize()} H&T",
-                "model": device.model,
-                "manufacturer": "Shelly",
-                "sw_version": device.firmware,
-                "configuration_url": f"http://{device.ip}",
-                "suggested_area": site_name,
-            },
-        }
-
-        _LOGGER.info("Publishing sensor discovery configs for %s", device.device_id)
-
-        await mqtt.async_publish(
-            self.hass,
-            temp_discovery_topic,
-            json.dumps(temp_config),
-            qos=1,
-            retain=True,
-        )
-
-        await mqtt.async_publish(
-            self.hass,
-            humidity_discovery_topic,
-            json.dumps(humidity_config),
-            qos=1,
-            retain=True,
-        )
 
     async def _async_publish_diagnostic_sensors(
         self,
@@ -582,7 +508,7 @@ class MQTTDiscoveryManager:
 
         _LOGGER.info("Removing discovery config for %s", device_id)
 
-        # Remove climate config
+        # Remove TRV climate config
         if device.is_trv:
             discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/climate/{device_id}/config"
             await mqtt.async_publish(
@@ -592,18 +518,6 @@ class MQTTDiscoveryManager:
                 qos=1,
                 retain=True,
             )
-
-        # Remove sensor configs
-        elif device.is_ht_sensor:
-            for sensor_type in ["temp", "humidity"]:
-                discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device_id}_{sensor_type}/config"
-                await mqtt.async_publish(
-                    self.hass,
-                    discovery_topic,
-                    "",
-                    qos=1,
-                    retain=True,
-                )
 
         # Remove from mapped devices
         del self._mapped_devices[device_id]
