@@ -237,6 +237,10 @@ class MQTTDiscoveryManager:
             "curr_temp_t": f"shellies/{device.device_id}/status",
             "curr_temp_tpl": "{{ value_json.tmp.value }}",
 
+            # HVAC action (heating/idle based on valve position)
+            "action_topic": f"shellies/{device.device_id}/info",
+            "action_template": "{% if value_json.thermostats[0].pos > 0 %}heating{% else %}idle{% endif %}",
+
             # Temperature settings
             "min_temp": 5,
             "max_temp": 30,
