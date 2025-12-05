@@ -120,6 +120,93 @@ class ShellyDetector:
             _LOGGER.error("Error parsing Shelly announce message: %s", err)
             return None
 
+    def parse_settings(self, device_id: str, payload: dict[str, Any]) -> ShellyDevice | None:
+        """Parse Shelly settings message.
+
+        Example payload:
+        {
+            "name": "room_101_bedroom",
+            "device": {
+                "type": "SHTRV-01",
+                "mac": "84FD270DD7CC",
+                "hostname": "shellytrv-84FD270DD7CC"
+            },
+            "wifi_ap": {...},
+            "wifi_sta": {...},
+            "mqtt": {...},
+            "sntp": {...},
+            "login": {...},
+            "pin_code": "000000",
+            "coiot": {...},
+            "time": "15:30",
+            "timezone": "UTC",
+            "lat": 50.4501,
+            "lng": 30.5234,
+            "tzautodetect": false,
+            "tz_utc_offset": 0,
+            "tz_dst": false,
+            "tz_dst_auto": true,
+            "discoverable": true
+        }
+
+        device_id is extracted from the MQTT topic: shellies/{device_id}/settings
+        """
+        try:
+            # Validate required fields
+            device_info = payload.get("device", {})
+            device_type = device_info.get("type", "")
+            device_mac = device_info.get("mac", "")
+            device_name = payload.get("name", device_id)  # Use name from settings, fallback to device_id
+
+            if not device_type or not device_mac:
+                _LOGGER.debug("Invalid settings payload: missing device.type or device.mac")
+                return None
+
+            # Check if Gen2+ (settings structure is different for Gen2)
+            # Gen1 has device.type, Gen2 has different structure
+            # For now we assume Gen1 if we got this far
+
+            # Build announce-like structure for ShellyDevice
+            announce_data = {
+                "id": device_id,
+                "model": device_type,
+                "mac": device_mac,
+                "ip": payload.get("wifi_sta", {}).get("ip", ""),
+                "fw_ver": "",  # Not available in settings
+            }
+
+            device = ShellyDevice(announce_data)
+
+            # Override the name with the settings name field
+            device.name = device_name
+
+            # Only process climate-related devices
+            if not device.is_climate_device:
+                _LOGGER.debug(
+                    "Detected non-climate Shelly device %s (model: %s), skipping",
+                    device.device_id,
+                    device.model
+                )
+                return None
+
+            # Store device
+            self._devices[device.device_id] = device
+
+            _LOGGER.info(
+                "Detected Shelly %s from settings: %s (name: %s, MAC: %s, IP: %s)",
+                device.model,
+                device.device_id,
+                device.name,
+                device.mac,
+                device.ip
+            )
+
+            return device
+
+        except Exception as err:
+            _LOGGER.error("Error parsing Shelly settings message: %s", err)
+            return None
+
     def get_device(self, device_id: str) -> ShellyDevice | None:
         """Get device by ID."""
         return self._devices.get(device_id)

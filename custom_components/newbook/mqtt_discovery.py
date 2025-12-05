@@ -50,19 +50,19 @@ class MQTTDiscoveryManager:
     async def async_setup(self) -> bool:
         """Set up MQTT discovery."""
         try:
-            # Subscribe to Shelly announce messages
-            # Use wildcard (+/announce) to catch both default (shellies/announce)
-            # and custom MQTT prefix devices (e.g., shellytrv_room_101_bedroom/announce)
+            # Subscribe to Shelly settings messages
+            # Gen1 Shelly devices publish settings but don't reliably publish announce messages
+            # Topic format: shellies/{device_id}/settings
             _LOGGER.info("Setting up Shelly MQTT autodiscovery")
 
             await mqtt.async_subscribe(
                 self.hass,
-                "+/announce",
-                self._async_announce_received,
+                "shellies/+/settings",
+                self._async_settings_received,
                 qos=1,
             )
 
-            _LOGGER.info("Subscribed to Shelly announce topic: +/announce")
+            _LOGGER.info("Subscribed to Shelly settings topic: shellies/+/settings")
             return True
 
         except Exception as err:
@@ -78,14 +78,22 @@ class MQTTDiscoveryManager:
             await self._async_remove_discovery_config(device_id)
 
     @callback
-    async def _async_announce_received(self, msg: mqtt.ReceiveMessage) -> None:
-        """Handle Shelly announce message."""
+    async def _async_settings_received(self, msg: mqtt.ReceiveMessage) -> None:
+        """Handle Shelly settings message."""
         try:
-            payload = json.loads(msg.payload)
-            _LOGGER.debug("Received Shelly announce: %s", payload)
+            # Extract device_id from topic: shellies/{device_id}/settings
+            topic_parts = msg.topic.split("/")
+            if len(topic_parts) != 3 or topic_parts[0] != "shellies" or topic_parts[2] != "settings":
+                _LOGGER.debug("Invalid settings topic format: %s", msg.topic)
+                return
 
-            # Parse device
-            device = self.detector.parse_announce(payload)
+            device_id = topic_parts[1]
+
+            payload = json.loads(msg.payload)
+            _LOGGER.debug("Received Shelly settings for %s: name=%s", device_id, payload.get("name"))
+
+            # Parse device from settings
+            device = self.detector.parse_settings(device_id, payload)
             if not device:
                 return
 
@@ -93,9 +101,9 @@ class MQTTDiscoveryManager:
             await self._async_process_device(device)
 
         except json.JSONDecodeError as err:
-            _LOGGER.error("Failed to decode announce message: %s", err)
+            _LOGGER.error("Failed to decode settings message: %s", err)
         except Exception as err:
-            _LOGGER.error("Error processing announce message: %s", err)
+            _LOGGER.error("Error processing settings message: %s", err)
 
     async def _async_process_device(self, device: ShellyDevice) -> None:
         """Process detected device and map to room if possible."""
