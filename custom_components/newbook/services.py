@@ -2,8 +2,10 @@
 import logging
 
 import voluptuous as vol
+import yaml
 
 from homeassistant.components import persistent_notification
+from homeassistant.components.lovelace import dashboard
 from homeassistant.core import HomeAssistant, ServiceCall
 import homeassistant.helpers.config_validation as cv
 
@@ -50,6 +52,99 @@ SYNC_ROOM_VALVES_SCHEMA = vol.Schema(
 RETRY_UNRESPONSIVE_TRVS_SCHEMA = vol.Schema({})
 
 CREATE_DASHBOARDS_SCHEMA = vol.Schema({})
+
+
+async def _async_register_dashboards(
+    hass: HomeAssistant,
+    dashboard_generator,
+    rooms: dict,
+) -> int:
+    """Register generated dashboards with Home Assistant."""
+    from homeassistant.components.lovelace import dashboard as lovelace_dashboard
+    from homeassistant.helpers import storage
+    from pathlib import Path
+
+    dashboards_path = Path(hass.config.path("dashboards/newbook"))
+    dashboards_created = 0
+
+    # Dashboard configurations to create
+    dashboard_configs = [
+        {
+            "url_path": "newbook-home",
+            "title": "Newbook Home",
+            "icon": "mdi:hotel",
+            "show_in_sidebar": True,
+            "require_admin": False,
+            "file": "home_overview.yaml",
+        },
+        {
+            "url_path": "newbook-battery",
+            "title": "Newbook Battery Monitor",
+            "icon": "mdi:battery",
+            "show_in_sidebar": True,
+            "require_admin": False,
+            "file": "battery_monitoring.yaml",
+        },
+        {
+            "url_path": "newbook-health",
+            "title": "Newbook TRV Health",
+            "icon": "mdi:heart-pulse",
+            "show_in_sidebar": True,
+            "require_admin": False,
+            "file": "trv_health.yaml",
+        },
+    ]
+
+    # Load lovelace config if not already loaded
+    if "lovelace" not in hass.data:
+        _LOGGER.warning("Lovelace not loaded, cannot register dashboards automatically")
+        return 0
+
+    # Register each dashboard
+    for config in dashboard_configs:
+        try:
+            yaml_file = dashboards_path / config["file"]
+            if not await hass.async_add_executor_job(yaml_file.exists):
+                _LOGGER.warning("Dashboard file not found: %s", yaml_file)
+                continue
+
+            # Read YAML content
+            content = await hass.async_add_executor_job(yaml_file.read_text)
+            dashboard_config = yaml.safe_load(content)
+
+            # Register dashboard using lovelace storage
+            url_path = config["url_path"]
+
+            # Create dashboard entry in lovelace
+            lovelace_config = hass.data.get("lovelace", {})
+            dashboards_dict = lovelace_config.get("dashboards", {})
+
+            # Create or update dashboard
+            if url_path in dashboards_dict:
+                _LOGGER.info("Updating existing dashboard: %s", config["title"])
+            else:
+                _LOGGER.info("Creating new dashboard: %s", config["title"])
+
+            # Store dashboard config
+            dashboards_dict[url_path] = lovelace_dashboard.LovelaceYAML(
+                hass,
+                url_path,
+                {
+                    "mode": "yaml",
+                    "title": config["title"],
+                    "icon": config["icon"],
+                    "show_in_sidebar": config["show_in_sidebar"],
+                    "require_admin": config["require_admin"],
+                    "filename": str(yaml_file),
+                },
+            )
+
+            dashboards_created += 1
+
+        except Exception as err:
+            _LOGGER.error("Failed to register dashboard %s: %s", config["title"], err, exc_info=True)
+
+    return dashboards_created
 
 
 async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
@@ -125,26 +220,38 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
         _LOGGER.info("Generating dashboard YAML files for %d rooms", len(rooms))
         await dashboard_generator.async_generate_all_dashboards(rooms)
 
-        # Notify user that dashboards have been generated
-        persistent_notification.async_create(
-            hass,
-            f"Dashboard templates generated for {len(rooms)} rooms at `/config/dashboards/newbook/`.\n\n"
-            f"To use them:\n"
-            f"1. Go to Settings → Dashboards\n"
-            f"2. Click 'Add Dashboard'\n"
-            f"3. Give it a name (e.g., 'Newbook Home')\n"
-            f"4. Edit the new dashboard in YAML mode\n"
-            f"5. Copy/paste content from the generated YAML files\n\n"
-            f"Generated files:\n"
-            f"- home_overview.yaml (main dashboard)\n"
-            f"- room_*.yaml ({len(rooms)} room dashboards)\n"
-            f"- battery_monitoring.yaml\n"
-            f"- trv_health.yaml",
-            title="Newbook Dashboards Created",
-            notification_id="newbook_dashboards_created",
-        )
+        # Register dashboards with Home Assistant
+        try:
+            dashboards_created = await _async_register_dashboards(hass, dashboard_generator, rooms)
 
-        _LOGGER.info("Dashboard generation complete")
+            # Notify user of success
+            persistent_notification.async_create(
+                hass,
+                f"Successfully created {dashboards_created} Newbook dashboards!\n\n"
+                f"Check your sidebar for:\n"
+                f"- Newbook Home (main overview)\n"
+                f"- Newbook Battery Monitor\n"
+                f"- Newbook TRV Health\n\n"
+                f"Individual room dashboards are also available in Settings → Dashboards.\n\n"
+                f"YAML templates are also saved at `/config/dashboards/newbook/` for backup.",
+                title="Newbook Dashboards Created",
+                notification_id="newbook_dashboards_created",
+            )
+            _LOGGER.info("Dashboard registration complete: %d dashboards created", dashboards_created)
+
+        except Exception as err:
+            _LOGGER.error("Failed to register dashboards: %s", err, exc_info=True)
+            persistent_notification.async_create(
+                hass,
+                f"Dashboard YAML files generated at `/config/dashboards/newbook/` but automatic "
+                f"registration failed: {err}\n\n"
+                f"You can manually create dashboards by:\n"
+                f"1. Go to Settings → Dashboards\n"
+                f"2. Click 'Add Dashboard'\n"
+                f"3. Copy content from the generated YAML files",
+                title="Newbook Dashboards - Manual Setup Required",
+                notification_id="newbook_dashboards_manual",
+            )
 
     # Register services only once
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BOOKINGS):
