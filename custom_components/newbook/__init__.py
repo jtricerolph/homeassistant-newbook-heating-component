@@ -29,6 +29,7 @@ from .coordinator import NewbookDataUpdateCoordinator
 from .dashboard_generator import DashboardGenerator
 from .heating_controller import HeatingController
 from .mqtt_discovery import MQTTDiscoveryManager
+from .room_manager import RoomManager
 from .services import async_register_services
 from .trv_monitor import TRVMonitor
 
@@ -104,6 +105,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Create MQTT discovery manager for Shelly devices
     mqtt_discovery = MQTTDiscoveryManager(hass, entry.entry_id)
 
+    # Create room manager for tracking discovered rooms
+    room_manager = RoomManager(hass, entry.entry_id)
+
     # Store everything in hass data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -114,6 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "heating_controller": heating_controller,
         "dashboard_generator": dashboard_generator,
         "mqtt_discovery": mqtt_discovery,
+        "room_manager": room_manager,
     }
 
     # Perform initial room state calculation before sensors are created

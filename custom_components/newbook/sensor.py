@@ -35,13 +35,6 @@ async def async_setup_entry(
     coordinator: NewbookDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
-
-    # Create room manager if not exists
-    if "room_manager" not in hass.data[DOMAIN][entry.entry_id]:
-        hass.data[DOMAIN][entry.entry_id]["room_manager"] = RoomManager(
-            hass, entry.entry_id
-        )
-
     room_manager: RoomManager = hass.data[DOMAIN][entry.entry_id]["room_manager"]
 
     # Create system-level sensors (created once)
