@@ -257,7 +257,6 @@ class DashboardGenerator:
         for state in self.hass.states.async_all():
             if (
                 state.entity_id.startswith("climate.room_")
-                and state.entity_id.endswith("_trv")
                 and f"room_{site_name}_" in state.entity_id
             ):
                 trv_entities.append(state.entity_id)
@@ -500,10 +499,8 @@ class DashboardGenerator:
             "filter": {
                 "include": [
                     {
-                        "entity_id": "climate.room_*_trv",
-                        "options": {
-                            "secondary_info": "last-changed",
-                        },
+                        "domain": "climate",
+                        "entity_id": "climate.room_*",
                     }
                 ],
             },
@@ -512,6 +509,30 @@ class DashboardGenerator:
             },
         }
         section_cards.append(all_trvs_card)
+
+        # WiFi signals card
+        wifi_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "📶 WiFi Signal Strength",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "sort": {
+                "method": "state",
+                "numeric": True,
+            },
+        }
+        section_cards.append(wifi_card)
 
         # Degraded/Poor TRVs card
         warning_card = {
@@ -1024,10 +1045,8 @@ Check signal strength in Shelly web interface → Device Info
             "filter": {
                 "include": [
                     {
-                        "entity_id": "climate.room_*_trv",
-                        "options": {
-                            "secondary_info": "last-changed",
-                        },
+                        "domain": "climate",
+                        "entity_id": "climate.room_*",
                     }
                 ],
             },
@@ -1036,6 +1055,30 @@ Check signal strength in Shelly web interface → Device Info
             },
         }
         section_cards.append(all_trvs_card)
+
+        # WiFi signals card
+        wifi_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "📶 WiFi Signal Strength",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "sort": {
+                "method": "state",
+                "numeric": True,
+            },
+        }
+        section_cards.append(wifi_card)
 
         # Degraded/Poor TRVs card
         warning_card = {
