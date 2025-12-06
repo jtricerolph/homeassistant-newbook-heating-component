@@ -93,16 +93,16 @@ class DashboardGenerator:
             card = {
                 "type": "custom:mushroom-template-card",
                 "primary": room_name,
-                "secondary": "{{ states('sensor.room_" + normalized_id + "_guest_name') }}",
+                "secondary": "{{ states('sensor.room_" + room_id + "_guest_name') }}",
                 "icon": "mdi:radiator",
-                "icon_color": "{% if is_state('binary_sensor.room_" + normalized_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
-                "badge_icon": "{% if is_state('switch.room_" + normalized_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
-                "badge_color": "{% if is_state('switch.room_" + normalized_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
+                "icon_color": "{% if is_state('binary_sensor.room_" + room_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
+                "badge_icon": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
+                "badge_color": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
                 "tap_action": {
                     "action": "navigate",
                     "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
                 },
-                "entity": f"binary_sensor.room_{normalized_id}_should_heat",
+                "entity": f"binary_sensor.room_{room_id}_should_heat",
             }
             section_cards.append(card)
 
@@ -180,13 +180,13 @@ class DashboardGenerator:
             "title": "📅 Booking Information",
             "entities": [
                 {"entity": f"sensor.{room_id}_booking_status"},
-                {"entity": f"sensor.room_{normalized_id}_guest_name"},
-                {"entity": f"sensor.room_{normalized_id}_arrival_time"},
-                {"entity": f"sensor.room_{normalized_id}_departure_time"},
-                {"entity": f"sensor.room_{normalized_id}_current_night"},
-                {"entity": f"sensor.room_{normalized_id}_total_nights"},
-                {"entity": f"sensor.room_{normalized_id}_pax"},
-                {"entity": f"sensor.room_{normalized_id}_booking_reference"},
+                {"entity": f"sensor.room_{room_id}_guest_name"},
+                {"entity": f"sensor.room_{room_id}_arrival_time"},
+                {"entity": f"sensor.room_{room_id}_departure_time"},
+                {"entity": f"sensor.room_{room_id}_current_night"},
+                {"entity": f"sensor.room_{room_id}_total_nights"},
+                {"entity": f"sensor.room_{room_id}_pax"},
+                {"entity": f"sensor.room_{room_id}_booking_reference"},
             ],
         }
         section_cards.append(booking_card)
@@ -196,10 +196,10 @@ class DashboardGenerator:
             "type": "entities",
             "title": "🔥 Heating Schedule",
             "entities": [
-                f"binary_sensor.room_{normalized_id}_should_heat",
-                f"sensor.room_{normalized_id}_heating_start_time",
-                f"sensor.room_{normalized_id}_cooling_start_time",
-                f"sensor.room_{normalized_id}_room_state",
+                f"binary_sensor.room_{room_id}_should_heat",
+                f"sensor.room_{room_id}_heating_start_time",
+                f"sensor.room_{room_id}_cooling_start_time",
+                f"sensor.room_{room_id}_room_state",
             ],
         }
         section_cards.append(heating_card)
@@ -210,15 +210,15 @@ class DashboardGenerator:
             "title": "⚙️ Heating Control",
             "entities": [
                 {
-                    "entity": f"switch.room_{normalized_id}_auto_mode",
+                    "entity": f"switch.room_{room_id}_auto_mode",
                     "name": "Auto Mode",
                 },
                 {
-                    "entity": f"switch.room_{normalized_id}_sync_setpoints",
+                    "entity": f"switch.room_{room_id}_sync_setpoints",
                     "name": "Sync All Valves",
                 },
                 {
-                    "entity": f"switch.room_{normalized_id}_exclude_bathroom_from_sync",
+                    "entity": f"switch.room_{room_id}_exclude_bathroom_from_sync",
                     "name": "Exclude Bathroom",
                 },
             ],
@@ -231,19 +231,19 @@ class DashboardGenerator:
             "title": "🌡️ Temperature Settings",
             "entities": [
                 {
-                    "entity": f"number.room_{normalized_id}_occupied_temperature",
+                    "entity": f"number.room_{room_id}_occupied_temperature",
                     "name": "Occupied Temperature",
                 },
                 {
-                    "entity": f"number.room_{normalized_id}_vacant_temperature",
+                    "entity": f"number.room_{room_id}_vacant_temperature",
                     "name": "Vacant Temperature",
                 },
                 {
-                    "entity": f"number.room_{normalized_id}_heating_offset_minutes",
+                    "entity": f"number.room_{room_id}_heating_offset_minutes",
                     "name": "Pre-heat Offset (min)",
                 },
                 {
-                    "entity": f"number.room_{normalized_id}_cooling_offset_minutes",
+                    "entity": f"number.room_{room_id}_cooling_offset_minutes",
                     "name": "Cooling Offset (min)",
                 },
             ],
@@ -256,7 +256,7 @@ class DashboardGenerator:
             if (
                 state.entity_id.startswith("climate.room_")
                 and state.entity_id.endswith("_trv")
-                and f"room_{normalized_id}_" in state.entity_id
+                and f"room_{room_id}_" in state.entity_id
             ):
                 trv_entities.append(state.entity_id)
 
@@ -605,16 +605,16 @@ Check signal strength in Shelly web interface → Device Info
             card = {
                 "type": "custom:mushroom-template-card",
                 "primary": room_name,
-                "secondary": "{{ states('sensor.room_" + normalized_id + "_guest_name') }}",
+                "secondary": "{{ states('sensor.room_" + room_id + "_guest_name') }}",
                 "icon": "mdi:radiator",
-                "icon_color": "{% if is_state('binary_sensor.room_" + normalized_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
-                "badge_icon": "{% if is_state('switch.room_" + normalized_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
-                "badge_color": "{% if is_state('switch.room_" + normalized_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
+                "icon_color": "{% if is_state('binary_sensor.room_" + room_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
+                "badge_icon": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
+                "badge_color": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
                 "tap_action": {
                     "action": "navigate",
                     "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
                 },
-                "entity": f"binary_sensor.room_{normalized_id}_should_heat",
+                "entity": f"binary_sensor.room_{room_id}_should_heat",
             }
             section_cards.append(card)
 
@@ -712,10 +712,10 @@ Check signal strength in Shelly web interface → Device Info
                 "type": "entities",
                 "title": "🔥 Heating Schedule",
                 "entities": [
-                    f"binary_sensor.room_{normalized_id}_should_heat",
-                    f"sensor.room_{normalized_id}_heating_start_time",
-                    f"sensor.room_{normalized_id}_cooling_start_time",
-                    f"sensor.room_{normalized_id}_room_state",
+                    f"binary_sensor.room_{room_id}_should_heat",
+                    f"sensor.room_{room_id}_heating_start_time",
+                    f"sensor.room_{room_id}_cooling_start_time",
+                    f"sensor.room_{room_id}_room_state",
                 ],
             }
             cards.append(heating_card)
@@ -726,15 +726,15 @@ Check signal strength in Shelly web interface → Device Info
                 "title": "⚙️ Heating Control",
                 "entities": [
                     {
-                        "entity": f"switch.room_{normalized_id}_auto_mode",
+                        "entity": f"switch.room_{room_id}_auto_mode",
                         "name": "Auto Mode",
                     },
                     {
-                        "entity": f"switch.room_{normalized_id}_sync_setpoints",
+                        "entity": f"switch.room_{room_id}_sync_setpoints",
                         "name": "Sync All Valves",
                     },
                     {
-                        "entity": f"switch.room_{normalized_id}_exclude_bathroom_from_sync",
+                        "entity": f"switch.room_{room_id}_exclude_bathroom_from_sync",
                         "name": "Exclude Bathroom",
                     },
                 ],
@@ -747,19 +747,19 @@ Check signal strength in Shelly web interface → Device Info
                 "title": "🌡️ Temperature Settings",
                 "entities": [
                     {
-                        "entity": f"number.room_{normalized_id}_occupied_temperature",
+                        "entity": f"number.room_{room_id}_occupied_temperature",
                         "name": "Occupied Temperature",
                     },
                     {
-                        "entity": f"number.room_{normalized_id}_vacant_temperature",
+                        "entity": f"number.room_{room_id}_vacant_temperature",
                         "name": "Vacant Temperature",
                     },
                     {
-                        "entity": f"number.room_{normalized_id}_heating_offset_minutes",
+                        "entity": f"number.room_{room_id}_heating_offset_minutes",
                         "name": "Pre-heat Offset (min)",
                     },
                     {
-                        "entity": f"number.room_{normalized_id}_cooling_offset_minutes",
+                        "entity": f"number.room_{room_id}_cooling_offset_minutes",
                         "name": "Cooling Offset (min)",
                     },
                 ],
