@@ -135,13 +135,6 @@ class BookingProcessor:
         # Calculate cooling start time (add offset, can be negative)
         cooling_start = departure_datetime + timedelta(minutes=cooling_offset)
 
-        _LOGGER.debug(
-            "Room %s heating schedule: heat from %s to %s",
-            room_id,
-            heating_start.isoformat(),
-            cooling_start.isoformat(),
-        )
-
         return {
             "heating_start": heating_start,
             "cooling_start": cooling_start,
@@ -171,23 +164,12 @@ class BookingProcessor:
         booking_status_raw = booking_data.get("booking_status", "")
         booking_status = booking_status_raw.lower()
 
-        _LOGGER.debug(
-            "Room %s booking status: raw='%s', lowercased='%s', ARRIVED='%s', DEPARTED='%s'",
-            room_id,
-            booking_status_raw,
-            booking_status,
-            BOOKING_STATUS_ARRIVED,
-            BOOKING_STATUS_DEPARTED,
-        )
-
         # Priority 1: Explicit departed status
         if booking_status == BOOKING_STATUS_DEPARTED:
-            _LOGGER.debug("Room %s: Status is DEPARTED, returning COOLING_DOWN", room_id)
             return ROOM_STATE_COOLING_DOWN
 
         # Priority 2: Explicit arrived status
         if booking_status == BOOKING_STATUS_ARRIVED:
-            _LOGGER.debug("Room %s: Status is ARRIVED, returning OCCUPIED", room_id)
             return ROOM_STATE_OCCUPIED
 
         # Priority 3: Time-based state determination
@@ -249,26 +231,12 @@ class BookingProcessor:
         # Check booking status is active
         booking_status_raw = booking_data.get("booking_status", "")
         booking_status = booking_status_raw.lower()
-        is_active = booking_status in ACTIVE_BOOKING_STATUSES
-
-        _LOGGER.debug(
-            "Room %s should_heat: status='%s' (raw='%s'), is_active=%s, room_state='%s', auto_mode=%s",
-            room_id,
-            booking_status,
-            booking_status_raw,
-            is_active,
-            room_state,
-            auto_mode,
-        )
 
         if booking_status not in ACTIVE_BOOKING_STATUSES:
-            _LOGGER.debug("Room %s: Booking status not active, not heating", room_id)
             return False
 
         # Heat in these states
-        should_heat = room_state in [ROOM_STATE_HEATING_UP, ROOM_STATE_OCCUPIED]
-        _LOGGER.debug("Room %s: Should heat = %s", room_id, should_heat)
-        return should_heat
+        return room_state in [ROOM_STATE_HEATING_UP, ROOM_STATE_OCCUPIED]
 
     def calculate_current_night(self, booking_data: dict[str, Any] | None) -> int:
         """Calculate which night of the stay we're currently on.
