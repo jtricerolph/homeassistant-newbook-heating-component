@@ -513,12 +513,70 @@ class DashboardGenerator:
         }
         section_cards.append(all_trvs_card)
 
-        # WiFi signals card
+        # Poor WiFi signal card (< -80 dBm)
+        poor_wifi_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "❌ Poor WiFi Signal (< -80 dBm)",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "state": "< -80",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "show_empty": True,
+            "sort": {
+                "method": "state",
+                "numeric": True,
+            },
+        }
+        section_cards.append(poor_wifi_card)
+
+        # Fair WiFi signal card (-70 to -80 dBm)
+        fair_wifi_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "⚠️ Fair WiFi Signal (-70 to -80 dBm)",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "state": "< -70",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+                "exclude": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "state": "< -80",
+                    }
+                ],
+            },
+            "show_empty": True,
+            "sort": {
+                "method": "state",
+                "numeric": True,
+            },
+        }
+        section_cards.append(fair_wifi_card)
+
+        # All WiFi signals card
         wifi_card = {
             "type": "custom:auto-entities",
             "card": {
                 "type": "entities",
-                "title": "📶 WiFi Signal Strength",
+                "title": "📶 All WiFi Signal Strength",
             },
             "filter": {
                 "include": [
@@ -536,20 +594,6 @@ class DashboardGenerator:
             },
         }
         section_cards.append(wifi_card)
-
-        # Degraded/Poor TRVs card
-        warning_card = {
-            "type": "markdown",
-            "content": """
-### ⚠️ TRVs Requiring Attention
-Check the logs for TRVs with degraded or poor health status.
-Common issues:
-- Weak WiFi signal (< -70 dBm)
-- Low battery (< 50%)
-- Incorrect MQTT configuration
-""",
-        }
-        section_cards.append(warning_card)
 
         # Quick actions
         actions_card = {
@@ -1059,12 +1103,70 @@ Check signal strength in Shelly web interface → Device Info
         }
         section_cards.append(all_trvs_card)
 
-        # WiFi signals card
+        # Poor WiFi signal card (< -80 dBm)
+        poor_wifi_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "❌ Poor WiFi Signal (< -80 dBm)",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "state": "< -80",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "show_empty": True,
+            "sort": {
+                "method": "state",
+                "numeric": True,
+            },
+        }
+        section_cards.append(poor_wifi_card)
+
+        # Fair WiFi signal card (-70 to -80 dBm)
+        fair_wifi_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "⚠️ Fair WiFi Signal (-70 to -80 dBm)",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "state": "< -70",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+                "exclude": [
+                    {
+                        "entity_id": "sensor.room_*_trv_wifi_signal",
+                        "state": "< -80",
+                    }
+                ],
+            },
+            "show_empty": True,
+            "sort": {
+                "method": "state",
+                "numeric": True,
+            },
+        }
+        section_cards.append(fair_wifi_card)
+
+        # All WiFi signals card
         wifi_card = {
             "type": "custom:auto-entities",
             "card": {
                 "type": "entities",
-                "title": "📶 WiFi Signal Strength",
+                "title": "📶 All WiFi Signal Strength",
             },
             "filter": {
                 "include": [
@@ -1082,20 +1184,6 @@ Check signal strength in Shelly web interface → Device Info
             },
         }
         section_cards.append(wifi_card)
-
-        # Degraded/Poor TRVs card
-        warning_card = {
-            "type": "markdown",
-            "content": """
-### ⚠️ TRVs Requiring Attention
-Check the logs for TRVs with degraded or poor health status.
-Common issues:
-- Weak WiFi signal (< -70 dBm)
-- Low battery (< 50%)
-- Incorrect MQTT configuration
-""",
-        }
-        section_cards.append(warning_card)
 
         # Quick actions
         actions_card = {
