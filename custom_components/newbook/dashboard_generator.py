@@ -306,7 +306,6 @@ class DashboardGenerator:
                         "service": "newbook.force_room_temperature",
                         "data": {
                             "room_id": room_id,
-                            "temperature": f"{{{{ states('number.{site_name}_occupied_temperature') | float }}}}",
                         },
                     },
                 },
@@ -319,7 +318,6 @@ class DashboardGenerator:
                         "service": "newbook.sync_room_valves",
                         "data": {
                             "room_id": room_id,
-                            "temperature": f"{{{{ states('number.{site_name}_occupied_temperature') | float }}}}",
                         },
                     },
                 },

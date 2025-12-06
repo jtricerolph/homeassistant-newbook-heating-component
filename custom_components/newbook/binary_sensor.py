@@ -108,15 +108,23 @@ class NewbookShouldHeatBinarySensor(NewbookRoomBinarySensorBase):
     @property
     def is_on(self) -> bool:
         """Return True if room should be heated."""
-        # TODO: Implement proper heating logic in Phase 5
-        # For now, return True if room has an active booking
-        booking = self._get_booking_data()
-        if not booking:
+        # Get heating controller from hass data
+        from .const import DOMAIN, ROOM_STATE_HEATING_UP, ROOM_STATE_OCCUPIED
+
+        heating_controller = None
+        for entry_id, data in self.hass.data[DOMAIN].items():
+            if isinstance(data, dict) and "heating_controller" in data:
+                heating_controller = data["heating_controller"]
+                break
+
+        if not heating_controller:
             return False
 
-        # Simple logic: if there's a booking, should heat
-        # This will be replaced with proper state machine logic
-        return True
+        # Check room state from heating controller
+        room_state = heating_controller.get_room_state(self._room_id)
+
+        # Should heat if room is in HEATING_UP or OCCUPIED state
+        return room_state in [ROOM_STATE_HEATING_UP, ROOM_STATE_OCCUPIED]
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

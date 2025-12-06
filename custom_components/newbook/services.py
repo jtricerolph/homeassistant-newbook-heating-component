@@ -32,7 +32,7 @@ SET_ROOM_AUTO_MODE_SCHEMA = vol.Schema(
 FORCE_ROOM_TEMPERATURE_SCHEMA = vol.Schema(
     {
         vol.Required("room_id"): cv.string,
-        vol.Required("temperature"): vol.All(
+        vol.Optional("temperature"): vol.All(
             vol.Coerce(float), vol.Range(min=5.0, max=30.0)
         ),
     }
@@ -41,7 +41,7 @@ FORCE_ROOM_TEMPERATURE_SCHEMA = vol.Schema(
 SYNC_ROOM_VALVES_SCHEMA = vol.Schema(
     {
         vol.Required("room_id"): cv.string,
-        vol.Required("temperature"): vol.All(
+        vol.Optional("temperature"): vol.All(
             vol.Coerce(float), vol.Range(min=5.0, max=30.0)
         ),
     }
@@ -74,7 +74,32 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
     async def async_force_room_temperature(call: ServiceCall) -> None:
         """Force a specific temperature for a room."""
         room_id = call.data["room_id"]
-        temperature = call.data["temperature"]
+        temperature = call.data.get("temperature")
+
+        # If no temperature provided, read from the occupied temperature number entity
+        if temperature is None:
+            # Get room info to find site_name
+            rooms = coordinator.get_all_rooms()
+            room_info = rooms.get(room_id)
+            if room_info:
+                site_name = room_info.get("site_name", room_id)
+                number_entity_id = f"number.{site_name}_occupied_temperature"
+                number_state = hass.states.get(number_entity_id)
+                if number_state and number_state.state not in ["unknown", "unavailable"]:
+                    temperature = float(number_state.state)
+                    _LOGGER.info(
+                        "Using occupied temperature from %s: %.1f°C",
+                        number_entity_id,
+                        temperature,
+                    )
+
+        if temperature is None:
+            _LOGGER.error(
+                "Service called: force_room_temperature for room %s but no temperature provided or found",
+                room_id,
+            )
+            return
+
         _LOGGER.info(
             "Service called: force_room_temperature for room %s to %.1f°C",
             room_id,
@@ -85,7 +110,32 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
     async def async_sync_room_valves(call: ServiceCall) -> None:
         """Manually sync all valves in a room."""
         room_id = call.data["room_id"]
-        temperature = call.data["temperature"]
+        temperature = call.data.get("temperature")
+
+        # If no temperature provided, read from the occupied temperature number entity
+        if temperature is None:
+            # Get room info to find site_name
+            rooms = coordinator.get_all_rooms()
+            room_info = rooms.get(room_id)
+            if room_info:
+                site_name = room_info.get("site_name", room_id)
+                number_entity_id = f"number.{site_name}_occupied_temperature"
+                number_state = hass.states.get(number_entity_id)
+                if number_state and number_state.state not in ["unknown", "unavailable"]:
+                    temperature = float(number_state.state)
+                    _LOGGER.info(
+                        "Using occupied temperature from %s: %.1f°C",
+                        number_entity_id,
+                        temperature,
+                    )
+
+        if temperature is None:
+            _LOGGER.error(
+                "Service called: sync_room_valves for room %s but no temperature provided or found",
+                room_id,
+            )
+            return
+
         _LOGGER.info(
             "Service called: sync_room_valves for room %s to %.1f°C",
             room_id,
