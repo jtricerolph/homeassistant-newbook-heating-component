@@ -3,6 +3,7 @@ import logging
 
 import voluptuous as vol
 
+from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, ServiceCall
 import homeassistant.helpers.config_validation as cv
 
@@ -112,7 +113,8 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
         rooms = coordinator.get_all_rooms()
         if not rooms:
             _LOGGER.warning("No rooms discovered, cannot create dashboards")
-            hass.components.persistent_notification.async_create(
+            persistent_notification.async_create(
+                hass,
                 "No rooms discovered. Please wait for booking data to be fetched.",
                 title="Newbook Dashboards",
                 notification_id="newbook_dashboards_no_rooms",
@@ -124,7 +126,8 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
         await dashboard_generator.async_generate_all_dashboards(rooms)
 
         # Notify user that dashboards have been generated
-        hass.components.persistent_notification.async_create(
+        persistent_notification.async_create(
+            hass,
             f"Dashboard templates generated for {len(rooms)} rooms at `/config/dashboards/newbook/`.\n\n"
             f"To use them:\n"
             f"1. Go to Settings → Dashboards\n"
