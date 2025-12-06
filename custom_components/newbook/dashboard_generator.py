@@ -77,10 +77,10 @@ class DashboardGenerator:
         # Sort rooms by room ID
         sorted_rooms = sorted(rooms.items(), key=lambda x: str(x[0]))
 
-        cards = []
+        section_cards = []
 
         # Title card
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": "# 🏨 Hotel Heating Overview\nManage heating for all rooms based on Newbook bookings.",
         })
@@ -104,7 +104,7 @@ class DashboardGenerator:
                 },
                 "entity": f"binary_sensor.room_{normalized_id}_should_heat",
             }
-            cards.append(card)
+            section_cards.append(card)
 
         # Services card
         services_card = {
@@ -131,7 +131,7 @@ class DashboardGenerator:
                 },
             ],
         }
-        cards.append(services_card)
+        section_cards.append(services_card)
 
         # System status card
         system_card = {
@@ -144,14 +144,20 @@ class DashboardGenerator:
                 "sensor.newbook_active_bookings",
             ],
         }
-        cards.append(system_card)
+        section_cards.append(system_card)
 
         return {
             "title": "Home",
             "path": "home",
             "icon": "mdi:home",
             "type": "sections",
-            "cards": cards,
+            "cards": [],
+            "sections": [
+                {
+                    "type": "grid",
+                    "cards": section_cards
+                }
+            ]
         }
 
     def _generate_room_view(self, room_id: str, room_info: dict[str, Any]) -> dict[str, Any]:
@@ -159,30 +165,31 @@ class DashboardGenerator:
         normalized_id = normalize_room_id(room_id)
         room_name = room_info.get("site_name", f"Room {room_id}")
 
-        cards = []
+        # Section cards list
+        section_cards = []
 
         # Room header with back button
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": f"# {room_name}\n[← Back to Overview](/dashboard-newbook/home)",
         })
 
-        # Booking information card
+        # Booking information card (uses room_id directly, not normalized)
         booking_card = {
             "type": "entities",
             "title": "📅 Booking Information",
             "entities": [
-                f"sensor.room_{normalized_id}_booking_status",
-                f"sensor.room_{normalized_id}_guest_name",
-                f"sensor.room_{normalized_id}_arrival_time",
-                f"sensor.room_{normalized_id}_departure_time",
-                f"sensor.room_{normalized_id}_current_night",
-                f"sensor.room_{normalized_id}_total_nights",
-                f"sensor.room_{normalized_id}_pax",
-                f"sensor.room_{normalized_id}_booking_reference",
+                {"entity": f"sensor.{room_id}_booking_status"},
+                {"entity": f"sensor.room_{normalized_id}_guest_name"},
+                {"entity": f"sensor.room_{normalized_id}_arrival_time"},
+                {"entity": f"sensor.room_{normalized_id}_departure_time"},
+                {"entity": f"sensor.room_{normalized_id}_current_night"},
+                {"entity": f"sensor.room_{normalized_id}_total_nights"},
+                {"entity": f"sensor.room_{normalized_id}_pax"},
+                {"entity": f"sensor.room_{normalized_id}_booking_reference"},
             ],
         }
-        cards.append(booking_card)
+        section_cards.append(booking_card)
 
         # Heating schedule card
         heating_card = {
@@ -195,7 +202,7 @@ class DashboardGenerator:
                 f"sensor.room_{normalized_id}_room_state",
             ],
         }
-        cards.append(heating_card)
+        section_cards.append(heating_card)
 
         # Auto mode control
         control_card = {
@@ -216,7 +223,7 @@ class DashboardGenerator:
                 },
             ],
         }
-        cards.append(control_card)
+        section_cards.append(control_card)
 
         # Settings card
         settings_card = {
@@ -241,7 +248,7 @@ class DashboardGenerator:
                 },
             ],
         }
-        cards.append(settings_card)
+        section_cards.append(settings_card)
 
         # TRV devices card
         trv_entities = []
@@ -277,7 +284,7 @@ class DashboardGenerator:
                         "name": f"{trv_entity.split('_')[-2].title()} Battery",
                     })
 
-            cards.append(trvs_card)
+            section_cards.append(trvs_card)
 
         # Manual override service card
         override_card = {
@@ -312,7 +319,7 @@ class DashboardGenerator:
                 },
             ],
         }
-        cards.append(override_card)
+        section_cards.append(override_card)
 
         return {
             "title": room_name,
@@ -320,21 +327,27 @@ class DashboardGenerator:
             "icon": "mdi:bed",
             "visible": False,  # Hidden from tabs, navigation only
             "type": "sections",
-            "cards": cards,
+            "cards": [],
+            "sections": [
+                {
+                    "type": "grid",
+                    "cards": section_cards
+                }
+            ]
         }
 
     def _generate_battery_view(self) -> dict[str, Any]:
         """Generate battery monitoring view."""
-        cards = []
+        section_cards = []
 
         # Title
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": "# 🔋 TRV Battery Monitoring\nMonitor battery levels across all Shelly TRV devices.",
         })
 
         # Battery level thresholds info
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": """
 ## Battery Level Guidelines
@@ -374,7 +387,7 @@ class DashboardGenerator:
                     "numeric": True,
                 },
             }
-            cards.append(all_batteries_card)
+            section_cards.append(all_batteries_card)
 
             # Low battery warning card
             low_battery_card = {
@@ -396,7 +409,7 @@ class DashboardGenerator:
                 },
                 "show_empty": True,
             }
-            cards.append(low_battery_card)
+            section_cards.append(low_battery_card)
 
             # Critical battery card
             critical_battery_card = {
@@ -418,10 +431,10 @@ class DashboardGenerator:
                 },
                 "show_empty": True,
             }
-            cards.append(critical_battery_card)
+            section_cards.append(critical_battery_card)
 
         else:
-            cards.append({
+            section_cards.append({
                 "type": "markdown",
                 "content": "No TRV battery sensors found. Ensure your Shelly TRVs are configured correctly.",
             })
@@ -431,21 +444,27 @@ class DashboardGenerator:
             "path": "battery",
             "icon": "mdi:battery",
             "type": "sections",
-            "cards": cards,
+            "cards": [],
+            "sections": [
+                {
+                    "type": "grid",
+                    "cards": section_cards
+                }
+            ]
         }
 
     def _generate_health_view(self) -> dict[str, Any]:
         """Generate TRV health monitoring view."""
-        cards = []
+        section_cards = []
 
         # Title
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": "# 🏥 TRV Health Monitoring\nMonitor responsiveness and health of all Shelly TRV devices.",
         })
 
         # Health status guide
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": """
 ## Health Status Guide
@@ -467,7 +486,7 @@ class DashboardGenerator:
                 "sensor.newbook_trv_health_unresponsive",
             ],
         }
-        cards.append(summary_card)
+        section_cards.append(summary_card)
 
         # All TRVs health card
         all_trvs_card = {
@@ -490,7 +509,7 @@ class DashboardGenerator:
                 "method": "name",
             },
         }
-        cards.append(all_trvs_card)
+        section_cards.append(all_trvs_card)
 
         # Degraded/Poor TRVs card
         warning_card = {
@@ -504,7 +523,7 @@ Common issues:
 - Incorrect MQTT configuration
 """,
         }
-        cards.append(warning_card)
+        section_cards.append(warning_card)
 
         # Quick actions
         actions_card = {
@@ -531,7 +550,7 @@ Common issues:
                 },
             ],
         }
-        cards.append(actions_card)
+        section_cards.append(actions_card)
 
         # WiFi signal strength guide
         wifi_guide = {
@@ -547,14 +566,20 @@ Common issues:
 Check signal strength in Shelly web interface → Device Info
 """,
         }
-        cards.append(wifi_guide)
+        section_cards.append(wifi_guide)
 
         return {
             "title": "Health",
             "path": "health",
             "icon": "mdi:heart-pulse",
             "type": "sections",
-            "cards": cards,
+            "cards": [],
+            "sections": [
+                {
+                    "type": "grid",
+                    "cards": section_cards
+                }
+            ]
         }
 
     async def _async_generate_home_overview(self, rooms: dict[str, dict[str, Any]]) -> None:
@@ -591,7 +616,7 @@ Check signal strength in Shelly web interface → Device Info
                 },
                 "entity": f"binary_sensor.room_{normalized_id}_should_heat",
             }
-            cards.append(card)
+            section_cards.append(card)
 
         # Services card
         services_card = {
@@ -618,7 +643,7 @@ Check signal strength in Shelly web interface → Device Info
                 },
             ],
         }
-        cards.append(services_card)
+        section_cards.append(services_card)
 
         # System status card
         system_card = {
@@ -842,7 +867,7 @@ Check signal strength in Shelly web interface → Device Info
         })
 
         # Battery level thresholds info
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": """
 ## Battery Level Guidelines
@@ -882,7 +907,7 @@ Check signal strength in Shelly web interface → Device Info
                     "numeric": True,
                 },
             }
-            cards.append(all_batteries_card)
+            section_cards.append(all_batteries_card)
 
             # Low battery warning card
             low_battery_card = {
@@ -904,7 +929,7 @@ Check signal strength in Shelly web interface → Device Info
                 },
                 "show_empty": True,
             }
-            cards.append(low_battery_card)
+            section_cards.append(low_battery_card)
 
             # Critical battery card
             critical_battery_card = {
@@ -926,7 +951,7 @@ Check signal strength in Shelly web interface → Device Info
                 },
                 "show_empty": True,
             }
-            cards.append(critical_battery_card)
+            section_cards.append(critical_battery_card)
 
         else:
             cards.append({
@@ -963,7 +988,7 @@ Check signal strength in Shelly web interface → Device Info
         })
 
         # Health status guide
-        cards.append({
+        section_cards.append({
             "type": "markdown",
             "content": """
 ## Health Status Guide
@@ -985,7 +1010,7 @@ Check signal strength in Shelly web interface → Device Info
                 "sensor.newbook_trv_health_unresponsive",
             ],
         }
-        cards.append(summary_card)
+        section_cards.append(summary_card)
 
         # All TRVs health card
         all_trvs_card = {
@@ -1008,7 +1033,7 @@ Check signal strength in Shelly web interface → Device Info
                 "method": "name",
             },
         }
-        cards.append(all_trvs_card)
+        section_cards.append(all_trvs_card)
 
         # Degraded/Poor TRVs card
         warning_card = {
@@ -1022,7 +1047,7 @@ Common issues:
 - Incorrect MQTT configuration
 """,
         }
-        cards.append(warning_card)
+        section_cards.append(warning_card)
 
         # Quick actions
         actions_card = {
@@ -1049,7 +1074,7 @@ Common issues:
                 },
             ],
         }
-        cards.append(actions_card)
+        section_cards.append(actions_card)
 
         # WiFi signal strength guide
         wifi_guide = {
