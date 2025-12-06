@@ -87,22 +87,23 @@ class DashboardGenerator:
 
         # Room cards in grid
         for room_id, room_info in sorted_rooms:
-            normalized_id = normalize_room_id(room_id)
-            room_name = room_info.get("site_name", f"Room {room_id}")
+            site_name = room_info.get("site_name", room_id)
+            normalized_id = normalize_room_id(site_name)
+            room_name = site_name
 
             card = {
                 "type": "custom:mushroom-template-card",
                 "primary": room_name,
-                "secondary": "{{ states('sensor.room_" + room_id + "_guest_name') }}",
+                "secondary": "{{ states('sensor.room_" + site_name + "_guest_name') }}",
                 "icon": "mdi:radiator",
-                "icon_color": "{% if is_state('binary_sensor.room_" + room_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
-                "badge_icon": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
-                "badge_color": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
+                "icon_color": "{% if is_state('binary_sensor.room_" + site_name + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
+                "badge_icon": "{% if is_state('switch.room_" + site_name + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
+                "badge_color": "{% if is_state('switch.room_" + site_name + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
                 "tap_action": {
                     "action": "navigate",
                     "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
                 },
-                "entity": f"binary_sensor.room_{room_id}_should_heat",
+                "entity": f"binary_sensor.room_{site_name}_should_heat",
             }
             section_cards.append(card)
 
@@ -162,8 +163,9 @@ class DashboardGenerator:
 
     def _generate_room_view(self, room_id: str, room_info: dict[str, Any]) -> dict[str, Any]:
         """Generate individual room view (hidden from tabs)."""
-        normalized_id = normalize_room_id(room_id)
-        room_name = room_info.get("site_name", f"Room {room_id}")
+        site_name = room_info.get("site_name", room_id)
+        normalized_id = normalize_room_id(site_name)
+        room_name = site_name
 
         # Section cards list
         section_cards = []
@@ -174,19 +176,19 @@ class DashboardGenerator:
             "content": f"# {room_name}\n[← Back to Overview](/dashboard-newbook/home)",
         })
 
-        # Booking information card (uses room_id directly, not normalized)
+        # Booking information card (uses site_name for entity IDs)
         booking_card = {
             "type": "entities",
             "title": "📅 Booking Information",
             "entities": [
-                {"entity": f"sensor.{room_id}_booking_status"},
-                {"entity": f"sensor.room_{room_id}_guest_name"},
-                {"entity": f"sensor.room_{room_id}_arrival_time"},
-                {"entity": f"sensor.room_{room_id}_departure_time"},
-                {"entity": f"sensor.room_{room_id}_current_night"},
-                {"entity": f"sensor.room_{room_id}_total_nights"},
-                {"entity": f"sensor.room_{room_id}_pax"},
-                {"entity": f"sensor.room_{room_id}_booking_reference"},
+                {"entity": f"sensor.{site_name}_booking_status"},
+                {"entity": f"sensor.room_{site_name}_guest_name"},
+                {"entity": f"sensor.room_{site_name}_arrival_time"},
+                {"entity": f"sensor.room_{site_name}_departure_time"},
+                {"entity": f"sensor.room_{site_name}_current_night"},
+                {"entity": f"sensor.room_{site_name}_total_nights"},
+                {"entity": f"sensor.room_{site_name}_pax"},
+                {"entity": f"sensor.room_{site_name}_booking_reference"},
             ],
         }
         section_cards.append(booking_card)
@@ -196,10 +198,10 @@ class DashboardGenerator:
             "type": "entities",
             "title": "🔥 Heating Schedule",
             "entities": [
-                f"binary_sensor.room_{room_id}_should_heat",
-                f"sensor.room_{room_id}_heating_start_time",
-                f"sensor.room_{room_id}_cooling_start_time",
-                f"sensor.room_{room_id}_room_state",
+                f"binary_sensor.room_{site_name}_should_heat",
+                f"sensor.room_{site_name}_heating_start_time",
+                f"sensor.room_{site_name}_cooling_start_time",
+                f"sensor.room_{site_name}_room_state",
             ],
         }
         section_cards.append(heating_card)
@@ -210,15 +212,15 @@ class DashboardGenerator:
             "title": "⚙️ Heating Control",
             "entities": [
                 {
-                    "entity": f"switch.room_{room_id}_auto_mode",
+                    "entity": f"switch.room_{site_name}_auto_mode",
                     "name": "Auto Mode",
                 },
                 {
-                    "entity": f"switch.room_{room_id}_sync_setpoints",
+                    "entity": f"switch.room_{site_name}_sync_setpoints",
                     "name": "Sync All Valves",
                 },
                 {
-                    "entity": f"switch.room_{room_id}_exclude_bathroom_from_sync",
+                    "entity": f"switch.room_{site_name}_exclude_bathroom_from_sync",
                     "name": "Exclude Bathroom",
                 },
             ],
@@ -231,19 +233,19 @@ class DashboardGenerator:
             "title": "🌡️ Temperature Settings",
             "entities": [
                 {
-                    "entity": f"number.room_{room_id}_occupied_temperature",
+                    "entity": f"number.room_{site_name}_occupied_temperature",
                     "name": "Occupied Temperature",
                 },
                 {
-                    "entity": f"number.room_{room_id}_vacant_temperature",
+                    "entity": f"number.room_{site_name}_vacant_temperature",
                     "name": "Vacant Temperature",
                 },
                 {
-                    "entity": f"number.room_{room_id}_heating_offset_minutes",
+                    "entity": f"number.room_{site_name}_heating_offset_minutes",
                     "name": "Pre-heat Offset (min)",
                 },
                 {
-                    "entity": f"number.room_{room_id}_cooling_offset_minutes",
+                    "entity": f"number.room_{site_name}_cooling_offset_minutes",
                     "name": "Cooling Offset (min)",
                 },
             ],
@@ -256,7 +258,7 @@ class DashboardGenerator:
             if (
                 state.entity_id.startswith("climate.room_")
                 and state.entity_id.endswith("_trv")
-                and f"room_{room_id}_" in state.entity_id
+                and f"room_{site_name}_" in state.entity_id
             ):
                 trv_entities.append(state.entity_id)
 
@@ -365,29 +367,27 @@ class DashboardGenerator:
                 battery_entities.append(state.entity_id)
 
         if battery_entities:
-            # All batteries card
-            all_batteries_card = {
+            # Critical battery card
+            critical_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
                     "type": "entities",
-                    "title": "📊 All TRV Batteries",
+                    "title": "❌ Critical Batteries",
                 },
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
+                            "state": "< 20",
                             "options": {
                                 "secondary_info": "last-changed",
                             },
                         }
                     ],
                 },
-                "sort": {
-                    "method": "state",
-                    "numeric": True,
-                },
+                "show_empty": True,
             }
-            section_cards.append(all_batteries_card)
+            section_cards.append(critical_battery_card)
 
             # Low battery warning card
             low_battery_card = {
@@ -411,27 +411,29 @@ class DashboardGenerator:
             }
             section_cards.append(low_battery_card)
 
-            # Critical battery card
-            critical_battery_card = {
+            # All batteries card
+            all_batteries_card = {
                 "type": "custom:auto-entities",
                 "card": {
                     "type": "entities",
-                    "title": "❌ Critical Batteries",
+                    "title": "📊 All TRV Batteries",
                 },
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
-                            "state": "< 20",
                             "options": {
                                 "secondary_info": "last-changed",
                             },
                         }
                     ],
                 },
-                "show_empty": True,
+                "sort": {
+                    "method": "state",
+                    "numeric": True,
+                },
             }
-            section_cards.append(critical_battery_card)
+            section_cards.append(all_batteries_card)
 
         else:
             section_cards.append({

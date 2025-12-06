@@ -50,6 +50,10 @@ async def async_setup_entry(
         NewbookLastUpdateSensor(coordinator, entry.entry_id),
         NewbookRoomsDiscoveredSensor(coordinator, entry.entry_id),
         NewbookActiveBookingsSensor(coordinator, entry.entry_id),
+        NewbookTRVHealthHealthySensor(hass, entry.entry_id),
+        NewbookTRVHealthDegradedSensor(hass, entry.entry_id),
+        NewbookTRVHealthPoorSensor(hass, entry.entry_id),
+        NewbookTRVHealthUnresponsiveSensor(hass, entry.entry_id),
     ]
     async_add_entities(system_entities)
 
@@ -640,3 +644,99 @@ class NewbookActiveBookingsSensor(NewbookSystemSensorBase):
         # Count bookings that are not "departed"
         active = [b for b in all_bookings if b.get("booking_status", "").lower() != "departed"]
         return len(active)
+
+
+class NewbookTRVHealthSensorBase(SensorEntity):
+    """Base class for TRV health sensors."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "TRVs"
+
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
+        """Initialize the sensor."""
+        self.hass = hass
+        self._entry_id = entry_id
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry_id)},
+            "name": "Newbook Hotel Heating",
+            "manufacturer": "Newbook",
+            "model": "Hotel Heating Control",
+        }
+
+    def _get_health_summary(self) -> dict[str, Any]:
+        """Get health summary from TRV monitor."""
+        try:
+            trv_monitor = self.hass.data[DOMAIN][self._entry_id].get("trv_monitor")
+            if trv_monitor:
+                return trv_monitor.get_health_summary()
+        except (KeyError, AttributeError):
+            pass
+        return {"healthy": 0, "degraded": 0, "poor": 0, "unresponsive": 0}
+
+
+class NewbookTRVHealthHealthySensor(NewbookTRVHealthSensorBase):
+    """Sensor for number of healthy TRVs."""
+
+    _attr_icon = "mdi:check-circle"
+
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(hass, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_trv_health_healthy"
+        self._attr_name = "Newbook TRV Health Healthy"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of healthy TRVs."""
+        return self._get_health_summary().get("healthy", 0)
+
+
+class NewbookTRVHealthDegradedSensor(NewbookTRVHealthSensorBase):
+    """Sensor for number of degraded TRVs."""
+
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(hass, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_trv_health_degraded"
+        self._attr_name = "Newbook TRV Health Degraded"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of degraded TRVs."""
+        return self._get_health_summary().get("degraded", 0)
+
+
+class NewbookTRVHealthPoorSensor(NewbookTRVHealthSensorBase):
+    """Sensor for number of poor health TRVs."""
+
+    _attr_icon = "mdi:alert"
+
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(hass, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_trv_health_poor"
+        self._attr_name = "Newbook TRV Health Poor"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of poor health TRVs."""
+        return self._get_health_summary().get("poor", 0)
+
+
+class NewbookTRVHealthUnresponsiveSensor(NewbookTRVHealthSensorBase):
+    """Sensor for number of unresponsive TRVs."""
+
+    _attr_icon = "mdi:alert-octagon"
+
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(hass, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_trv_health_unresponsive"
+        self._attr_name = "Newbook TRV Health Unresponsive"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of unresponsive TRVs."""
+        return self._get_health_summary().get("unresponsive", 0)
