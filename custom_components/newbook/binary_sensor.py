@@ -29,7 +29,9 @@ async def async_setup_entry(
     coordinator: NewbookDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
-    room_manager: RoomManager = hass.data[DOMAIN][entry.entry_id]["room_manager"]
+
+    # Track discovered rooms for THIS platform only
+    discovered_rooms: set[str] = set()
 
     @callback
     def async_add_binary_sensors() -> None:
@@ -38,18 +40,15 @@ async def async_setup_entry(
         rooms = coordinator.get_all_rooms()
 
         for room_id, room_info in rooms.items():
-            if not room_manager.is_room_discovered(room_id):
+            if room_id not in discovered_rooms:
                 # Create binary sensor for heating state
                 entities.append(
                     NewbookShouldHeatBinarySensor(coordinator, room_id, room_info)
                 )
+                discovered_rooms.add(room_id)
 
         if entities:
             async_add_entities(entities)
-            # Mark rooms as discovered
-            for room_id in rooms:
-                if not room_manager.is_room_discovered(room_id):
-                    room_manager._discovered_rooms.add(room_id)
 
     # Add binary sensors for initially discovered rooms
     async_add_binary_sensors()

@@ -35,7 +35,6 @@ async def async_setup_entry(
     coordinator: NewbookDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
-    room_manager: RoomManager = hass.data[DOMAIN][entry.entry_id]["room_manager"]
 
     # Create system-level sensors (created once)
     system_entities = [
@@ -50,6 +49,9 @@ async def async_setup_entry(
     ]
     async_add_entities(system_entities)
 
+    # Track discovered rooms for THIS platform only
+    discovered_rooms: set[str] = set()
+
     @callback
     def async_add_sensors() -> None:
         """Add sensors for all discovered rooms."""
@@ -57,7 +59,7 @@ async def async_setup_entry(
         rooms = coordinator.get_all_rooms()
 
         for room_id, room_info in rooms.items():
-            if not room_manager.is_room_discovered(room_id):
+            if room_id not in discovered_rooms:
                 # Create all sensor types for this room
                 entities.extend(
                     [
@@ -74,13 +76,10 @@ async def async_setup_entry(
                         NewbookRoomStateSensor(coordinator, room_id, room_info, entry.entry_id),
                     ]
                 )
+                discovered_rooms.add(room_id)
 
         if entities:
             async_add_entities(entities)
-            # Mark rooms as discovered
-            for room_id in rooms:
-                if not room_manager.is_room_discovered(room_id):
-                    room_manager._discovered_rooms.add(room_id)
 
     # Add sensors for initially discovered rooms
     async_add_sensors()

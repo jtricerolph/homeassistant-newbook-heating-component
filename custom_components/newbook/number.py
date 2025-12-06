@@ -36,8 +36,10 @@ async def async_setup_entry(
     coordinator: NewbookDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
-    room_manager: RoomManager = hass.data[DOMAIN][entry.entry_id]["room_manager"]
     config = entry
+
+    # Track discovered rooms for THIS platform only
+    discovered_rooms: set[str] = set()
 
     @callback
     def async_add_numbers() -> None:
@@ -46,7 +48,7 @@ async def async_setup_entry(
         rooms = coordinator.get_all_rooms()
 
         for room_id, room_info in rooms.items():
-            if not room_manager.is_room_discovered(room_id):
+            if room_id not in discovered_rooms:
                 # Create all number entities for this room
                 entities.extend(
                     [
@@ -64,13 +66,10 @@ async def async_setup_entry(
                         ),
                     ]
                 )
+                discovered_rooms.add(room_id)
 
         if entities:
             async_add_entities(entities)
-            # Mark rooms as discovered
-            for room_id in rooms:
-                if not room_manager.is_room_discovered(room_id):
-                    room_manager._discovered_rooms.add(room_id)
 
     # Add numbers for initially discovered rooms
     async_add_numbers()
