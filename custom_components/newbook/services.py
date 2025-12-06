@@ -129,40 +129,29 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
         config_yaml_snippet = """lovelace:
   mode: storage
   dashboards:
-    newbook-home:
+    newbook:
       mode: yaml
-      title: Newbook Home
+      title: Hotel Heating
       icon: mdi:hotel
       show_in_sidebar: true
-      filename: /config/dashboards/newbook/home_overview.yaml
-    newbook-battery:
-      mode: yaml
-      title: Newbook Battery Monitor
-      icon: mdi:battery
-      show_in_sidebar: true
-      filename: /config/dashboards/newbook/battery_monitoring.yaml
-    newbook-health:
-      mode: yaml
-      title: Newbook TRV Health
-      icon: mdi:heart-pulse
-      show_in_sidebar: true
-      filename: /config/dashboards/newbook/trv_health.yaml"""
+      filename: /config/dashboards/newbook/newbook.yaml"""
 
         persistent_notification.async_create(
             hass,
-            f"Dashboard YAML files generated successfully at `/config/dashboards/newbook/`\n\n"
-            f"**To register the dashboards:**\n\n"
-            f"1. Edit your `/config/configuration.yaml` file\n"
-            f"2. Add or merge this configuration:\n\n"
+            f"✅ **Dashboard generated successfully!**\n\n"
+            f"📁 File: `/config/dashboards/newbook/newbook.yaml`\n\n"
+            f"**To register the dashboard:**\n\n"
+            f"1. Edit `/config/configuration.yaml`\n"
+            f"2. Add this configuration:\n\n"
             f"```yaml\n{config_yaml_snippet}\n```\n\n"
             f"3. Restart Home Assistant\n"
-            f"4. Dashboards will appear in your sidebar\n\n"
-            f"**Generated dashboards:**\n"
-            f"- Newbook Home (main overview with all rooms)\n"
-            f"- Newbook Battery Monitor (battery levels)\n"
-            f"- Newbook TRV Health (device health monitoring)\n"
-            f"- Individual room dashboards (one per room)",
-            title="Newbook Dashboards Generated",
+            f"4. Dashboard will appear in sidebar\n\n"
+            f"**Dashboard contains:**\n"
+            f"• **Home** tab - Overview of all {len(rooms)} rooms (click rooms to view details)\n"
+            f"• **Battery** tab - TRV battery monitoring\n"
+            f"• **Health** tab - TRV device health\n"
+            f"• Hidden room detail views (navigation only)",
+            title="Hotel Heating Dashboard Generated",
             notification_id="newbook_dashboards_created",
         )
         _LOGGER.info("Dashboard YAML generation complete for %d rooms", len(rooms))
