@@ -67,6 +67,10 @@ async def async_setup_entry(
 
         if entities:
             async_add_entities(entities)
+            # Mark rooms as discovered
+            for room_id in rooms:
+                if not room_manager.is_room_discovered(room_id):
+                    room_manager._discovered_rooms.add(room_id)
 
     # Add numbers for initially discovered rooms
     async_add_numbers()
