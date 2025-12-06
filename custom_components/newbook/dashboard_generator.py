@@ -94,16 +94,16 @@ class DashboardGenerator:
             card = {
                 "type": "custom:mushroom-template-card",
                 "primary": room_name,
-                "secondary": "{{ states('sensor.room_" + site_name + "_guest_name') }}",
+                "secondary": "{{ states('sensor." + site_name + "_guest_name') }}",
                 "icon": "mdi:radiator",
-                "icon_color": "{% if is_state('binary_sensor.room_" + site_name + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
-                "badge_icon": "{% if is_state('switch.room_" + site_name + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
-                "badge_color": "{% if is_state('switch.room_" + site_name + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
+                "icon_color": "{% if is_state('binary_sensor." + site_name + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
+                "badge_icon": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
+                "badge_color": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
                 "tap_action": {
                     "action": "navigate",
                     "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
                 },
-                "entity": f"binary_sensor.room_{site_name}_should_heat",
+                "entity": f"binary_sensor.{site_name}_should_heat",
             }
             section_cards.append(card)
 
@@ -182,13 +182,13 @@ class DashboardGenerator:
             "title": "📅 Booking Information",
             "entities": [
                 {"entity": f"sensor.{site_name}_booking_status"},
-                {"entity": f"sensor.room_{site_name}_guest_name"},
-                {"entity": f"sensor.room_{site_name}_arrival_time"},
-                {"entity": f"sensor.room_{site_name}_departure_time"},
-                {"entity": f"sensor.room_{site_name}_current_night"},
-                {"entity": f"sensor.room_{site_name}_total_nights"},
-                {"entity": f"sensor.room_{site_name}_pax"},
-                {"entity": f"sensor.room_{site_name}_booking_reference"},
+                {"entity": f"sensor.{site_name}_guest_name"},
+                {"entity": f"sensor.{site_name}_arrival"},
+                {"entity": f"sensor.{site_name}_departure"},
+                {"entity": f"sensor.{site_name}_current_night"},
+                {"entity": f"sensor.{site_name}_total_nights"},
+                {"entity": f"sensor.{site_name}_number_of_guests"},
+                {"entity": f"sensor.{site_name}_booking_reference"},
             ],
         }
         section_cards.append(booking_card)
@@ -198,10 +198,10 @@ class DashboardGenerator:
             "type": "entities",
             "title": "🔥 Heating Schedule",
             "entities": [
-                f"binary_sensor.room_{site_name}_should_heat",
-                f"sensor.room_{site_name}_heating_start_time",
-                f"sensor.room_{site_name}_cooling_start_time",
-                f"sensor.room_{site_name}_room_state",
+                f"binary_sensor.{site_name}_should_heat",
+                f"sensor.{site_name}_heating_start_time",
+                f"sensor.{site_name}_cooling_start_time",
+                f"sensor.{site_name}_room_state",
             ],
         }
         section_cards.append(heating_card)
@@ -212,15 +212,15 @@ class DashboardGenerator:
             "title": "⚙️ Heating Control",
             "entities": [
                 {
-                    "entity": f"switch.room_{site_name}_auto_mode",
+                    "entity": f"switch.{site_name}_auto_mode",
                     "name": "Auto Mode",
                 },
                 {
-                    "entity": f"switch.room_{site_name}_sync_setpoints",
+                    "entity": f"switch.{site_name}_sync_setpoints",
                     "name": "Sync All Valves",
                 },
                 {
-                    "entity": f"switch.room_{site_name}_exclude_bathroom_from_sync",
+                    "entity": f"switch.{site_name}_exclude_bathroom_from_sync",
                     "name": "Exclude Bathroom",
                 },
             ],
@@ -233,19 +233,19 @@ class DashboardGenerator:
             "title": "🌡️ Temperature Settings",
             "entities": [
                 {
-                    "entity": f"number.room_{site_name}_occupied_temperature",
+                    "entity": f"number.{site_name}_occupied_temperature",
                     "name": "Occupied Temperature",
                 },
                 {
-                    "entity": f"number.room_{site_name}_vacant_temperature",
+                    "entity": f"number.{site_name}_vacant_temperature",
                     "name": "Vacant Temperature",
                 },
                 {
-                    "entity": f"number.room_{site_name}_heating_offset_minutes",
+                    "entity": f"number.{site_name}_heating_offset",
                     "name": "Pre-heat Offset (min)",
                 },
                 {
-                    "entity": f"number.room_{site_name}_cooling_offset_minutes",
+                    "entity": f"number.{site_name}_cooling_offset",
                     "name": "Cooling Offset (min)",
                 },
             ],
