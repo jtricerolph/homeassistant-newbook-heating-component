@@ -69,3 +69,7 @@ sync_room_valves:
 retry_unresponsive_trvs:
   name: Retry unresponsive TRVs
   description: Retry sending commands to all unresponsive TRV devices
+
+create_dashboards:
+  name: Create/Update Dashboards
+  description: Create or update all Newbook dashboards from generated templates

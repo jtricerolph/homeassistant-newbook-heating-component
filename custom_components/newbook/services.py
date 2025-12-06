@@ -8,6 +8,7 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import (
     DOMAIN,
+    SERVICE_CREATE_DASHBOARDS,
     SERVICE_FORCE_ROOM_TEMPERATURE,
     SERVICE_REFRESH_BOOKINGS,
     SERVICE_RETRY_UNRESPONSIVE_TRVS,
@@ -47,12 +48,15 @@ SYNC_ROOM_VALVES_SCHEMA = vol.Schema(
 
 RETRY_UNRESPONSIVE_TRVS_SCHEMA = vol.Schema({})
 
+CREATE_DASHBOARDS_SCHEMA = vol.Schema({})
+
 
 async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
     """Register integration services."""
     heating_controller = hass.data[DOMAIN][entry_id]["heating_controller"]
     trv_monitor = hass.data[DOMAIN][entry_id]["trv_monitor"]
     coordinator = hass.data[DOMAIN][entry_id]["coordinator"]
+    dashboard_generator = hass.data[DOMAIN][entry_id]["dashboard_generator"]
 
     async def async_refresh_bookings(call: ServiceCall) -> None:
         """Refresh booking data from Newbook API."""
@@ -100,6 +104,45 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
             len(result),
         )
 
+    async def async_create_dashboards(call: ServiceCall) -> None:
+        """Create or update all Newbook dashboards."""
+        _LOGGER.info("Service called: create_dashboards")
+
+        # Get all rooms
+        rooms = coordinator.get_all_rooms()
+        if not rooms:
+            _LOGGER.warning("No rooms discovered, cannot create dashboards")
+            hass.components.persistent_notification.async_create(
+                "No rooms discovered. Please wait for booking data to be fetched.",
+                title="Newbook Dashboards",
+                notification_id="newbook_dashboards_no_rooms",
+            )
+            return
+
+        # Generate dashboard YAML files
+        _LOGGER.info("Generating dashboard YAML files for %d rooms", len(rooms))
+        await dashboard_generator.async_generate_all_dashboards(rooms)
+
+        # Notify user that dashboards have been generated
+        hass.components.persistent_notification.async_create(
+            f"Dashboard templates generated for {len(rooms)} rooms at `/config/dashboards/newbook/`.\n\n"
+            f"To use them:\n"
+            f"1. Go to Settings → Dashboards\n"
+            f"2. Click 'Add Dashboard'\n"
+            f"3. Give it a name (e.g., 'Newbook Home')\n"
+            f"4. Edit the new dashboard in YAML mode\n"
+            f"5. Copy/paste content from the generated YAML files\n\n"
+            f"Generated files:\n"
+            f"- home_overview.yaml (main dashboard)\n"
+            f"- room_*.yaml ({len(rooms)} room dashboards)\n"
+            f"- battery_monitoring.yaml\n"
+            f"- trv_health.yaml",
+            title="Newbook Dashboards Created",
+            notification_id="newbook_dashboards_created",
+        )
+
+        _LOGGER.info("Dashboard generation complete")
+
     # Register services only once
     if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BOOKINGS):
         hass.services.async_register(
@@ -139,6 +182,14 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
             SERVICE_RETRY_UNRESPONSIVE_TRVS,
             async_retry_unresponsive_trvs,
             schema=RETRY_UNRESPONSIVE_TRVS_SCHEMA,
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_CREATE_DASHBOARDS):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_CREATE_DASHBOARDS,
+            async_create_dashboards,
+            schema=CREATE_DASHBOARDS_SCHEMA,
         )
 
     _LOGGER.info("Newbook services registered")

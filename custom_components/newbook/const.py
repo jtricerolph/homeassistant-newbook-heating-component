@@ -116,6 +116,7 @@ SERVICE_SET_ROOM_AUTO_MODE: Final = "set_room_auto_mode"
 SERVICE_FORCE_ROOM_TEMPERATURE: Final = "force_room_temperature"
 SERVICE_SYNC_ROOM_VALVES: Final = "sync_room_valves"
 SERVICE_RETRY_UNRESPONSIVE_TRVS: Final = "retry_unresponsive_trvs"
+SERVICE_CREATE_DASHBOARDS: Final = "create_dashboards"
 
 # Platforms
 PLATFORMS: Final = ["sensor", "binary_sensor", "number", "switch"]
