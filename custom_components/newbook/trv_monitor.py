@@ -409,11 +409,30 @@ class TRVMonitor:
 
         Looks for climate entities with the room ID in their entity_id.
         """
+        # Get site_name from coordinator
+        from .const import DOMAIN
+
+        coordinator = None
+        for entry_id, data in self.hass.data[DOMAIN].items():
+            if isinstance(data, dict) and "coordinator" in data:
+                coordinator = data["coordinator"]
+                break
+
+        if not coordinator:
+            return []
+
+        rooms = coordinator.get_all_rooms()
+        room_info = rooms.get(room_id)
+        if not room_info:
+            return []
+
+        site_name = room_info.get("site_name", room_id)
+
         entity_registry = er.async_get(self.hass)
         trvs = []
 
         for entity in entity_registry.entities.values():
-            if entity.domain == "climate" and f"room_{room_id}_" in entity.entity_id:
+            if entity.domain == "climate" and f"room_{site_name}_" in entity.entity_id:
                 trvs.append(entity.entity_id)
 
         return trvs
