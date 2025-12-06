@@ -70,7 +70,17 @@ class TRVHealth:
     @property
     def health_state(self) -> str:
         """Determine current health state."""
+        # If never commanded, assume healthy (not yet tested)
+        if not self.last_command_sent:
+            return TRV_HEALTH_HEALTHY
+
+        # If commanded but never seen response, check how long ago
         if not self.last_seen:
+            # If recently commanded, might still be waiting
+            if self.last_command_sent:
+                time_since_command = datetime.now() - self.last_command_sent
+                if time_since_command < timedelta(minutes=5):
+                    return TRV_HEALTH_HEALTHY  # Give it time
             return TRV_HEALTH_UNRESPONSIVE
 
         # Check if unresponsive (no response in last 30 minutes)
@@ -498,12 +508,36 @@ class TRVMonitor:
 
         return results
 
+    def discover_all_trvs(self) -> list[str]:
+        """Discover all TRV climate entities and initialize health tracking.
+
+        Returns:
+            List of discovered TRV entity IDs
+        """
+        entity_registry = er.async_get(self.hass)
+        discovered = []
+
+        for entity in entity_registry.entities.values():
+            if entity.domain == "climate" and "room_" in entity.entity_id:
+                entity_id = entity.entity_id
+                discovered.append(entity_id)
+
+                # Initialize health tracking if not already tracked
+                if entity_id not in self._health:
+                    self._health[entity_id] = TRVHealth(entity_id)
+
+        _LOGGER.debug("Discovered %d TRVs for health monitoring", len(discovered))
+        return discovered
+
     def get_health_summary(self) -> dict[str, Any]:
         """Get summary of all TRV health states.
 
         Returns:
             Dict with health statistics
         """
+        # Discover TRVs before generating summary
+        self.discover_all_trvs()
+
         summary = {
             "total": len(self._health),
             "healthy": 0,
