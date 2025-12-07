@@ -126,6 +126,7 @@ See [Shelly Quick Reference](docs/SHELLY_QUICK_REFERENCE.md) for configuration t
 - **[Configuration Guide](docs/CONFIGURATION.md)** - All settings explained
 - **[MQTT Setup](docs/MQTT_SETUP.md)** - Complete MQTT and Shelly TRV setup
 - **[Shelly Quick Reference](docs/SHELLY_QUICK_REFERENCE.md)** - Quick configuration guide
+- **[Privacy & Data Retention](docs/PRIVACY.md)** - Guest data privacy configuration
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[API Reference](docs/API_REFERENCE.md)** - Services, entities, and events
 
