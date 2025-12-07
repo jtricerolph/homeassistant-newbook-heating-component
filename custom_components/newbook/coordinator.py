@@ -278,24 +278,54 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         Priority:
         1. Return "arrived" booking (current guest in room)
         2. If no "arrived", return next "confirmed" or "unconfirmed" booking by arrival date
+           that hasn't passed its departure date yet
         """
         bookings = self._bookings.get(room_id, [])
         if not bookings:
             return None
 
+        now = datetime.now()
+
         # Priority 1: Find "arrived" booking (current guest)
         for booking in bookings:
-            if booking.get("booking_status") == BOOKING_STATUS_ARRIVED:
+            status = booking.get("booking_status", "").lower()
+            if status == BOOKING_STATUS_ARRIVED:
                 return booking
 
-        # Priority 2: Find next "confirmed" or "unconfirmed" booking
-        # Sort by arrival date to get the next upcoming booking
-        upcoming_bookings = [
-            b for b in bookings
-            if b.get("booking_status") in [BOOKING_STATUS_CONFIRMED, BOOKING_STATUS_UNCONFIRMED]
-        ]
+        # Priority 2: Find next relevant "confirmed" or "unconfirmed" booking
+        # Filter to bookings that haven't departed yet
+        upcoming_bookings = []
+        for booking in bookings:
+            status = booking.get("booking_status", "").lower()
+            if status not in [BOOKING_STATUS_CONFIRMED, BOOKING_STATUS_UNCONFIRMED]:
+                continue
+
+            # Parse departure date to check if booking is still relevant
+            departure_str = booking.get("booking_departure")
+            if departure_str:
+                try:
+                    # Try parsing with time
+                    departure_dt = datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
+                except (ValueError, TypeError):
+                    try:
+                        # Try parsing date only (assume end of day)
+                        departure_date = datetime.strptime(departure_str, "%Y-%m-%d")
+                        departure_dt = departure_date.replace(hour=23, minute=59, second=59)
+                    except (ValueError, TypeError):
+                        # Can't parse departure, include it to be safe
+                        upcoming_bookings.append(booking)
+                        continue
+
+                # Only include bookings that haven't departed yet
+                # Add a buffer of 1 day to account for late checkouts and cooling period
+                if departure_dt >= (now - timedelta(days=1)):
+                    upcoming_bookings.append(booking)
+            else:
+                # No departure date, include it to be safe
+                upcoming_bookings.append(booking)
 
         if upcoming_bookings:
+            # Sort by arrival date to get the next upcoming booking
             sorted_bookings = sorted(
                 upcoming_bookings,
                 key=lambda x: x.get("booking_arrival", ""),
