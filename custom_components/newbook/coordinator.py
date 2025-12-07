@@ -374,5 +374,5 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def async_refresh_bookings(self) -> None:
         """Manually refresh booking data."""
-        _LOGGER.info("Manual booking refresh requested")
-        await self.async_request_refresh()
+        _LOGGER.info("Manual booking refresh requested - forcing immediate update")
+        await self.async_refresh()
