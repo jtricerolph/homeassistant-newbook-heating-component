@@ -74,9 +74,6 @@ class DashboardGenerator:
 
     def _generate_home_view(self, rooms: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """Generate home overview view."""
-        # Sort rooms by room ID
-        sorted_rooms = sorted(rooms.items(), key=lambda x: str(x[0]))
-
         section_cards = []
 
         # Title card
@@ -85,27 +82,52 @@ class DashboardGenerator:
             "content": "# 🏨 Hotel Heating Overview\nManage heating for all rooms based on Newbook bookings.",
         })
 
-        # Room cards in grid
-        for room_id, room_info in sorted_rooms:
-            site_name = room_info.get("site_name", room_id)
-            normalized_id = normalize_room_id(site_name)
-            room_name = site_name
+        # Group rooms by category
+        from collections import defaultdict
+        categories = defaultdict(list)
 
-            card = {
-                "type": "custom:mushroom-template-card",
-                "primary": room_name,
-                "secondary": "{{ states('sensor." + site_name + "_guest_name') }}",
-                "icon": "mdi:radiator",
-                "icon_color": "{% if is_state('binary_sensor." + site_name + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
-                "badge_icon": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
-                "badge_color": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
-                "tap_action": {
-                    "action": "navigate",
-                    "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
-                },
-                "entity": f"binary_sensor.{site_name}_should_heat",
-            }
-            section_cards.append(card)
+        for room_id, room_info in rooms.items():
+            category_name = room_info.get("category_name", "Uncategorized")
+            categories[category_name].append((room_id, room_info))
+
+        # Sort categories alphabetically
+        sorted_categories = sorted(categories.items())
+
+        # Generate room cards grouped by category
+        for category_name, category_rooms in sorted_categories:
+            # Add category header
+            section_cards.append({
+                "type": "markdown",
+                "content": f"## {category_name}",
+            })
+
+            # Sort rooms within category by site_name
+            sorted_rooms = sorted(
+                category_rooms,
+                key=lambda x: str(x[1].get("site_name", x[0]))
+            )
+
+            # Add room cards for this category
+            for room_id, room_info in sorted_rooms:
+                site_name = room_info.get("site_name", room_id)
+                normalized_id = normalize_room_id(site_name)
+                room_name = site_name
+
+                card = {
+                    "type": "custom:mushroom-template-card",
+                    "primary": room_name,
+                    "secondary": "{{ states('sensor." + site_name + "_guest_name') }}",
+                    "icon": "mdi:radiator",
+                    "icon_color": "{% if is_state('binary_sensor." + site_name + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
+                    "badge_icon": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
+                    "badge_color": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
+                    "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
+                    },
+                    "entity": f"binary_sensor.{site_name}_should_heat",
+                }
+                section_cards.append(card)
 
         # Services card
         services_card = {
@@ -656,9 +678,6 @@ Check signal strength in Shelly web interface → Device Info
         """Generate home overview dashboard with all rooms."""
         _LOGGER.debug("Generating home overview dashboard")
 
-        # Sort rooms by room ID
-        sorted_rooms = sorted(rooms.items(), key=lambda x: str(x[0]))
-
         cards = []
 
         # Title card
@@ -667,26 +686,51 @@ Check signal strength in Shelly web interface → Device Info
             "content": "# 🏨 Hotel Heating Overview\nManage heating for all rooms based on Newbook bookings.",
         })
 
-        # Room cards in grid
-        for room_id, room_info in sorted_rooms:
-            normalized_id = normalize_room_id(room_id)
-            room_name = room_info.get("site_name", f"Room {room_id}")
+        # Group rooms by category
+        from collections import defaultdict
+        categories = defaultdict(list)
 
-            card = {
-                "type": "custom:mushroom-template-card",
-                "primary": room_name,
-                "secondary": "{{ states('sensor.room_" + room_id + "_guest_name') }}",
-                "icon": "mdi:radiator",
-                "icon_color": "{% if is_state('binary_sensor.room_" + room_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
-                "badge_icon": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
-                "badge_color": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
-                "tap_action": {
-                    "action": "navigate",
-                    "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
-                },
-                "entity": f"binary_sensor.room_{room_id}_should_heat",
-            }
-            section_cards.append(card)
+        for room_id, room_info in rooms.items():
+            category_name = room_info.get("category_name", "Uncategorized")
+            categories[category_name].append((room_id, room_info))
+
+        # Sort categories alphabetically
+        sorted_categories = sorted(categories.items())
+
+        # Generate room cards grouped by category
+        for category_name, category_rooms in sorted_categories:
+            # Add category header
+            cards.append({
+                "type": "markdown",
+                "content": f"## {category_name}",
+            })
+
+            # Sort rooms within category by site_name
+            sorted_rooms = sorted(
+                category_rooms,
+                key=lambda x: str(x[1].get("site_name", x[0]))
+            )
+
+            # Add room cards for this category
+            for room_id, room_info in sorted_rooms:
+                normalized_id = normalize_room_id(room_id)
+                room_name = room_info.get("site_name", f"Room {room_id}")
+
+                card = {
+                    "type": "custom:mushroom-template-card",
+                    "primary": room_name,
+                    "secondary": "{{ states('sensor.room_" + room_id + "_guest_name') }}",
+                    "icon": "mdi:radiator",
+                    "icon_color": "{% if is_state('binary_sensor.room_" + room_id + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
+                    "badge_icon": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
+                    "badge_color": "{% if is_state('switch.room_" + room_id + "_auto_mode', 'on') %}green{% else %}orange{% endif %}",
+                    "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": f"/dashboard-newbook/room-{normalized_id}",
+                    },
+                    "entity": f"binary_sensor.room_{room_id}_should_heat",
+                }
+                cards.append(card)
 
         # Services card
         services_card = {
@@ -713,7 +757,7 @@ Check signal strength in Shelly web interface → Device Info
                 },
             ],
         }
-        section_cards.append(services_card)
+        cards.append(services_card)
 
         # System status card
         system_card = {
