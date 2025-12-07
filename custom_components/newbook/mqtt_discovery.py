@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
@@ -203,6 +204,19 @@ class MQTTDiscoveryManager:
         if device.is_trv:
             await self._async_publish_climate_config(device, mapping)
 
+    def _ensure_area_exists(self, area_name: str) -> None:
+        """Ensure an area exists, create it if it doesn't."""
+        area_reg = ar.async_get(self.hass)
+
+        # Check if area already exists
+        for area in area_reg.async_list_areas():
+            if area.name == area_name:
+                return
+
+        # Create the area
+        _LOGGER.info("Creating area %s for newly discovered device", area_name)
+        area_reg.async_create(area_name)
+
     async def _async_publish_climate_config(
         self,
         device: ShellyDevice,
@@ -215,6 +229,11 @@ class MQTTDiscoveryManager:
 
         # Get the Newbook room's site_name for area matching
         site_name = self._get_room_site_name(site_id)
+
+        # Ensure the area exists before publishing discovery config
+        # This is necessary because suggested_area only works if the area exists
+        if site_name:
+            self._ensure_area_exists(site_name)
 
         # Discovery topic
         discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/climate/{device.device_id}/config"
