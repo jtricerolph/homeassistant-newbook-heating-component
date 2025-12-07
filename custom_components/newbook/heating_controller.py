@@ -87,10 +87,6 @@ class HeatingController:
 
         This is the main entry point for heating control logic.
         """
-        # Check if auto mode is enabled
-        if not self.get_auto_mode(room_id):
-            return
-
         # Get booking data
         booking = self.coordinator.get_room_booking(room_id)
 
@@ -98,7 +94,7 @@ class HeatingController:
         booking_processor = self.coordinator.booking_processor
         schedule = booking_processor.calculate_heating_schedule(room_id, booking) if booking else {}
 
-        # Determine current room state
+        # Determine current room state (ALWAYS calculate, regardless of auto mode)
         new_state = booking_processor.determine_room_state(room_id, booking, schedule)
         old_state = self._room_states.get(room_id, ROOM_STATE_VACANT)
 
@@ -106,11 +102,12 @@ class HeatingController:
         if booking:
             await self._handle_booking_status_change(room_id, booking, old_state, new_state)
 
-        # Apply heating logic based on state
-        await self._apply_heating_logic(room_id, new_state, old_state, booking, schedule)
-
-        # Update stored state
+        # Update stored state (ALWAYS update, even if auto mode is off)
         self._room_states[room_id] = new_state
+
+        # Apply heating logic based on state (ONLY if auto mode is enabled)
+        if self.get_auto_mode(room_id):
+            await self._apply_heating_logic(room_id, new_state, old_state, booking, schedule)
 
     async def _handle_booking_status_change(
         self,
