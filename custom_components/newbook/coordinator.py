@@ -376,3 +376,6 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         """Manually refresh booking data."""
         _LOGGER.info("Manual booking refresh requested - forcing immediate update")
         await self.async_refresh()
+        # Explicitly notify all listeners to update their states
+        _LOGGER.debug("Explicitly notifying %d listeners after manual refresh", len(self._listeners))
+        self.async_update_listeners()
