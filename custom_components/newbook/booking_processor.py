@@ -205,6 +205,19 @@ class BookingProcessor:
             _LOGGER.debug("Room %s: Missing heating_start or cooling_start, state=booked", room_id)
             return ROOM_STATE_BOOKED
 
+        # Check if arrival is today - if not, treat as vacant
+        # A booking for next week shouldn't show as "booked" today
+        today = now.date()
+        arrival_date = arrival.date()
+        if arrival_date > today:
+            _LOGGER.debug(
+                "Room %s: Arrival is in the future (%s > %s), state=vacant",
+                room_id,
+                arrival_date,
+                today,
+            )
+            return ROOM_STATE_VACANT
+
         # Check if we're in the heating up phase
         if heating_start <= now < arrival:
             _LOGGER.debug("Room %s: In heating_up phase (heating_start <= now < arrival)", room_id)

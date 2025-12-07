@@ -153,10 +153,25 @@ class DashboardGenerator:
                 normalized_id = normalize_room_id(site_name)
                 room_name = site_name
 
+                # Build secondary text template based on room state
+                secondary_template = (
+                    "{% set state = states('sensor." + site_name + "_room_state') %}"
+                    "{% if state == 'vacant' %}Vacant"
+                    "{% elif state == 'booked' %}"
+                    "{% set heating_start = states('sensor." + site_name + "_heating_start') %}"
+                    "{% if heating_start not in ['unknown', 'unavailable'] %}"
+                    "Booked - Preheating {{ relative_time(strptime(heating_start, '%Y-%m-%d %H:%M:%S')) }}"
+                    "{% else %}Booked{% endif %}"
+                    "{% elif state == 'heating_up' %}Preheating"
+                    "{% elif state == 'occupied' %}{{ states('sensor." + site_name + "_guest_name') }}"
+                    "{% elif state == 'cooling_down' %}Cooling Down"
+                    "{% else %}{{ states('sensor." + site_name + "_guest_name') }}{% endif %}"
+                )
+
                 card = {
                     "type": "custom:mushroom-template-card",
                     "primary": room_name,
-                    "secondary": "{{ states('sensor." + site_name + "_guest_name') }}",
+                    "secondary": secondary_template,
                     "icon": "mdi:radiator",
                     "icon_color": "{% if is_state('binary_sensor." + site_name + "_should_heat', 'on') %}red{% else %}blue{% endif %}",
                     "badge_icon": "{% if is_state('switch." + site_name + "_auto_mode', 'on') %}mdi:auto-fix{% else %}mdi:hand{% endif %}",
