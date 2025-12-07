@@ -10,6 +10,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 
 from .api import NewbookApiClient
 from .const import (
@@ -137,6 +138,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await heating_controller.async_update_all_rooms()
 
     coordinator.async_add_listener(_async_coordinator_updated)
+
+    # Setup time-based tracker to update room states every minute
+    # This ensures states transition at the correct times (heating_start, arrival, etc.)
+    # independent of the coordinator polling schedule
+    async def _async_time_based_update(_now=None):
+        """Handle time-based room state updates."""
+        _LOGGER.debug("Time-based room state update triggered")
+        await heating_controller.async_update_all_rooms()
+
+    # Track time every 1 minute
+    remove_time_tracker = async_track_time_interval(
+        hass,
+        _async_time_based_update,
+        timedelta(minutes=1)
+    )
+    entry.async_on_unload(remove_time_tracker)
 
     # Generate dashboards after platforms are set up
     rooms = coordinator.get_all_rooms()
