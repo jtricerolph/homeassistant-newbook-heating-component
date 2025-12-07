@@ -133,6 +133,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup coordinator listener to update heating when bookings change
     async def _async_coordinator_updated():
         """Handle coordinator updates."""
+        _LOGGER.debug("Coordinator update triggered, refreshing all room states")
         await heating_controller.async_update_all_rooms()
 
     coordinator.async_add_listener(_async_coordinator_updated)
@@ -142,6 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # independent of the coordinator polling schedule
     async def _async_time_based_update(_now=None):
         """Handle time-based room state updates."""
+        _LOGGER.debug("Time-based update triggered (every 1 minute)")
         await heating_controller.async_update_all_rooms()
 
     # Track time every 1 minute

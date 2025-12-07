@@ -268,6 +268,11 @@ class HeatingController:
     async def async_update_all_rooms(self) -> None:
         """Update heating for all discovered rooms."""
         rooms = self.coordinator.get_all_rooms()
+        _LOGGER.debug(
+            "async_update_all_rooms called - updating %d rooms: %s",
+            len(rooms),
+            list(rooms.keys()),
+        )
 
         for room_id in rooms:
             try:
