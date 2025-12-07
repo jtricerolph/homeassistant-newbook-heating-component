@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Newbook API Connection",
+        "title": "Newbook Hotel Management API",
         "description": "Enter your Newbook API credentials",
         "data": {
           "username": "Username",
@@ -15,26 +15,26 @@
         "title": "Polling Settings",
         "description": "Configure how often to check for booking updates",
         "data": {
-          "scan_interval": "Refresh interval (minutes)"
+          "scan_interval": "Update interval (minutes)"
         }
       },
       "defaults": {
         "title": "Default Room Settings",
-        "description": "These settings will be applied to all discovered rooms (can be adjusted per room later)",
+        "description": "Default settings for all rooms",
         "data": {
-          "default_arrival_time": "Default arrival time",
-          "default_departure_time": "Default departure time",
-          "heating_offset_minutes": "Heating offset (minutes before arrival)",
-          "cooling_offset_minutes": "Cooling offset (minutes after departure, can be negative)",
+          "default_arrival_time": "Default arrival time (HH:MM:SS)",
+          "default_departure_time": "Default departure time (HH:MM:SS)",
+          "heating_offset_minutes": "Pre-heat offset (minutes)",
+          "cooling_offset_minutes": "Cooling offset (minutes)",
           "occupied_temperature": "Occupied temperature (°C)",
           "vacant_temperature": "Vacant temperature (°C)"
         }
       },
       "trv_monitoring": {
         "title": "TRV Monitoring Settings",
-        "description": "Configure TRV reliability and battery monitoring",
+        "description": "Configure TRV health monitoring and battery alerts",
         "data": {
-          "max_retry_attempts": "Maximum retry attempts",
+          "max_retry_attempts": "Max retry attempts",
           "command_timeout": "Command timeout (seconds)",
           "battery_warning_threshold": "Battery warning threshold (%)",
           "battery_critical_threshold": "Battery critical threshold (%)"
@@ -42,10 +42,10 @@
       },
       "valve_sync": {
         "title": "Valve Sync Defaults",
-        "description": "Default behavior for room valve synchronization",
+        "description": "Default settings for valve synchronization",
         "data": {
-          "sync_setpoints_default": "Sync room setpoints by default",
-          "exclude_bathroom_default": "Exclude bathroom from sync by default"
+          "sync_setpoints_default": "Sync setpoints by default",
+          "exclude_bathroom_default": "Exclude bathroom by default"
         }
       }
     },
@@ -55,7 +55,7 @@
       "unknown": "Unexpected error occurred"
     },
     "abort": {
-      "already_configured": "This Newbook account is already configured"
+      "already_configured": "This account is already configured"
     }
   },
   "options": {
@@ -64,6 +64,7 @@
         "title": "Newbook Options",
         "menu_options": {
           "general_settings": "General Settings",
+          "room_exclusions": "Room & Category Exclusions",
           "map_shelly_devices": "Map Shelly Devices"
         }
       },
@@ -71,35 +72,49 @@
         "title": "General Settings",
         "description": "Update integration settings",
         "data": {
-          "scan_interval": "Refresh interval (minutes)",
-          "default_arrival_time": "Default arrival time",
-          "default_departure_time": "Default departure time",
-          "heating_offset_minutes": "Heating offset (minutes)",
+          "scan_interval": "Update interval (minutes)",
+          "default_arrival_time": "Default arrival time (HH:MM:SS)",
+          "default_departure_time": "Default departure time (HH:MM:SS)",
+          "heating_offset_minutes": "Pre-heat offset (minutes)",
           "cooling_offset_minutes": "Cooling offset (minutes)",
           "occupied_temperature": "Occupied temperature (°C)",
           "vacant_temperature": "Vacant temperature (°C)",
-          "max_retry_attempts": "Maximum retry attempts",
+          "max_retry_attempts": "Max retry attempts",
           "command_timeout": "Command timeout (seconds)",
           "battery_warning_threshold": "Battery warning threshold (%)",
           "battery_critical_threshold": "Battery critical threshold (%)",
-          "sync_setpoints_default": "Sync room setpoints by default",
-          "exclude_bathroom_default": "Exclude bathroom from sync by default"
+          "sync_setpoints_default": "Sync setpoints by default",
+          "exclude_bathroom_default": "Exclude bathroom by default"
+        }
+      },
+      "room_exclusions": {
+        "title": "Room & Category Exclusions",
+        "description": "Exclude specific rooms or entire categories from monitoring and dashboard generation. Useful for virtual rooms (e.g., overflow bookings) or rooms without smart valves. Changes take effect after reloading the integration or restarting Home Assistant.",
+        "data": {
+          "excluded_rooms": "Excluded rooms",
+          "excluded_categories": "Excluded categories"
+        },
+        "data_description": {
+          "excluded_rooms": "Select rooms to exclude from monitoring (e.g., virtual overflow rooms)",
+          "excluded_categories": "Select categories to exclude from monitoring (e.g., Overflow, Admin)"
         }
       },
       "map_shelly_devices": {
         "title": "Map Shelly Devices",
-        "description": "Map unmapped Shelly devices to rooms. Devices that match the pattern 'room_{site_id}_{location}' are automatically mapped. {unmapped_count} device(s) need manual mapping.",
+        "description": "Map unmapped Shelly TRV devices to rooms.",
         "data": {
-          "device_id": "Shelly Device",
-          "site_id": "Room Number (Site ID)",
-          "location": "Location (e.g., bedroom, lounge, bathroom)"
+          "device_id": "Device",
+          "site_id": "Room ID",
+          "location": "Location (e.g., bedroom, bathroom)"
         }
       }
     },
     "abort": {
-      "no_unmapped_devices": "All Shelly devices are already mapped to rooms",
-      "mapping_failed": "Failed to map device to room",
-      "mqtt_discovery_not_available": "MQTT discovery is not available"
+      "mqtt_discovery_not_available": "MQTT discovery manager not available",
+      "no_unmapped_devices": "No unmapped devices found",
+      "mapping_failed": "Failed to map device",
+      "coordinator_not_available": "Integration not fully loaded. Please wait a moment and try again.",
+      "no_rooms_available": "No rooms discovered yet. Please wait for the integration to fetch room data."
     }
   }
 }
