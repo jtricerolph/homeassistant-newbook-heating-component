@@ -354,11 +354,11 @@ class DashboardGenerator:
         section_cards.append({
             "type": "markdown",
             "content": """
-## Battery Level Guidelines
+## Battery Level Guidelines (Rechargeable)
 - **80-100%**: Excellent ✓
 - **50-80%**: Good ✓
-- **20-50%**: Low ⚠ Plan replacement
-- **Below 20%**: Critical ❌ Replace immediately
+- **20-50%**: Low ⚠ Plan recharge
+- **Below 20%**: Critical ❌ Recharge immediately
 """,
         })
 
@@ -940,11 +940,11 @@ Check signal strength in Shelly web interface → Device Info
         section_cards.append({
             "type": "markdown",
             "content": """
-## Battery Level Guidelines
+## Battery Level Guidelines (Rechargeable)
 - **80-100%**: Excellent ✓
 - **50-80%**: Good ✓
-- **20-50%**: Low ⚠ Plan replacement
-- **Below 20%**: Critical ❌ Replace immediately
+- **20-50%**: Low ⚠ Plan recharge
+- **Below 20%**: Critical ❌ Recharge immediately
 """,
         })
 

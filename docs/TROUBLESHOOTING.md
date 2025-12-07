@@ -214,7 +214,7 @@ Solutions to common issues with the Newbook Hotel Management integration.
 2. **Check Battery Level**:
    - `sensor.room_XXX_YYY_trv_battery`
    - Should be > 20%
-   - Replace batteries if low
+   - Recharge batteries if low
 
 3. **Check MQTT Connection**:
    - Developer Tools → MQTT

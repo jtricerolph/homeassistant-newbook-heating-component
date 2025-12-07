@@ -262,7 +262,7 @@ If TRVs don't respond to commands:
 
 2. **Check battery level**:
    - Low battery (< 20%) causes unreliability
-   - Replace batteries
+   - Recharge batteries
 
 3. **Use retry service**:
    ```yaml

@@ -64,14 +64,14 @@ Sleep Time: 10 minutes (recommended)
 
 **Check signal**: Shelly web interface → Device Info
 
-## Battery Level Guidelines
+## Battery Level Guidelines (Rechargeable)
 
 | Level | Status | Action |
 |-------|--------|--------|
 | 80-100% | Excellent | ✓ No action |
 | 50-80% | Good | ✓ Monitor |
-| 20-50% | Low | ⚠ Plan replacement |
-| Below 20% | Critical | ❌ Replace immediately |
+| 20-50% | Low | ⚠ Plan recharge |
+| Below 20% | Critical | ❌ Recharge immediately |
 
 ## Expected Response Times
 
@@ -272,10 +272,10 @@ Settings:
 1. **Label physical TRVs** with room numbers for easy identification
 2. **Test one room first** before configuring all TRVs
 3. **Document your WiFi signal strengths** during installation
-4. **Keep spare batteries** on hand - TRVs use 2× AA batteries
+4. **Keep charging cable** on hand - TRVs have built-in rechargeable batteries
 5. **Set realistic expectations** - battery devices are slower than AC units
 6. **Use stickers** on TRVs showing the room number and type (bedroom/bathroom)
 7. **Monitor health dashboard** weekly to catch issues early
-8. **Replace batteries annually** or when below 20%
+8. **Recharge batteries regularly** or when below 20%
 9. **Consider WiFi extenders** in weak signal areas before problems arise
 10. **Test during slow season** before peak occupancy

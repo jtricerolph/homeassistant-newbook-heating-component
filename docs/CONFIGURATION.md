@@ -361,7 +361,7 @@ Attempt 6-10: 30 minutes each
 - Critical log message
 - `binary_sensor.room_XXX_YYY_trv_battery_critical` turns ON
 - Dashboard shows critical alert
-- Should trigger replacement immediately
+- Should trigger recharge immediately
 
 ## Advanced Configuration
 
@@ -540,7 +540,7 @@ data:
    - Energy usage trends
    - Guest complaints
    - TRV health status
-   - Battery replacement needs
+   - Battery recharge needs
 
 ## Configuration Backup
 
