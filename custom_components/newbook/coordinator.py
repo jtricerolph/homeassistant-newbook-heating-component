@@ -232,6 +232,13 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
             "tasks": tasks,
         }
 
+    def get_all_rooms_unfiltered(self) -> dict[str, dict[str, Any]]:
+        """Get all discovered rooms without any filtering.
+
+        Used by config flow to show all available rooms for exclusion configuration.
+        """
+        return self._sites.copy()
+
     def get_all_rooms(self) -> dict[str, dict[str, Any]]:
         """Get all discovered rooms, excluding configured exclusions."""
         excluded_rooms = self.config.get(CONF_EXCLUDED_ROOMS, [])

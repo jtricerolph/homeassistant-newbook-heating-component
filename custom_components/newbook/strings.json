@@ -112,7 +112,9 @@
     "abort": {
       "mqtt_discovery_not_available": "MQTT discovery manager not available",
       "no_unmapped_devices": "No unmapped devices found",
-      "mapping_failed": "Failed to map device"
+      "mapping_failed": "Failed to map device",
+      "coordinator_not_available": "Integration not fully loaded. Please wait a moment and try again.",
+      "no_rooms_available": "No rooms discovered yet. Please wait for the integration to fetch room data."
     }
   }
 }

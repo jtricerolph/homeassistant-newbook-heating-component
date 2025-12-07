@@ -454,8 +454,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         # Get coordinator to get available rooms and categories
-        coordinator = self.hass.data[DOMAIN][self._config_entry.entry_id]["coordinator"]
-        rooms = coordinator.get_all_rooms()
+        # Use unfiltered version to show ALL rooms including already excluded ones
+        try:
+            coordinator = self.hass.data[DOMAIN][self._config_entry.entry_id]["coordinator"]
+            rooms = coordinator.get_all_rooms_unfiltered()
+        except (KeyError, AttributeError):
+            _LOGGER.error("Failed to get coordinator or rooms for exclusions config")
+            return self.async_abort(reason="coordinator_not_available")
 
         # Get current config
         current_config = {**self._config_entry.data, **self._config_entry.options}
@@ -471,6 +476,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             category_name = room_info.get("category_name")
             if category_name:
                 categories.add(category_name)
+
+        # If no rooms found, show error
+        if not room_options:
+            _LOGGER.warning("No rooms available for exclusion configuration")
+            return self.async_abort(reason="no_rooms_available")
 
         # Create schema with multi-select
         data_schema = vol.Schema(
