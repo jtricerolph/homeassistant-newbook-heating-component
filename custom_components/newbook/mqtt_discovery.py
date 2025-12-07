@@ -8,7 +8,7 @@ from typing import Any
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
@@ -303,6 +303,10 @@ class MQTTDiscoveryManager:
         # Publish diagnostic sensors
         await self._async_publish_diagnostic_sensors(device, mapping)
 
+        # Assign device to area (do this after publishing config to ensure device exists)
+        if site_name:
+            await self._async_assign_device_to_area(device.mac, site_name)
+
     async def _async_publish_diagnostic_sensors(
         self,
         device: ShellyDevice,
@@ -449,6 +453,47 @@ class MQTTDiscoveryManager:
 
         # Subscribe to info topic for diagnostic data
         await self._async_subscribe_device_info(device)
+
+    async def _async_assign_device_to_area(self, mac: str, area_name: str) -> None:
+        """Assign a device to an area using device and area registries."""
+        # Small delay to ensure device is created by Home Assistant
+        await asyncio.sleep(2)
+
+        device_reg = dr.async_get(self.hass)
+        area_reg = ar.async_get(self.hass)
+
+        # Find the area
+        area_id = None
+        for area in area_reg.async_list_areas():
+            if area.name == area_name:
+                area_id = area.id
+                break
+
+        if not area_id:
+            _LOGGER.warning("Area %s not found when trying to assign device", area_name)
+            return
+
+        # Find the device by identifier (shelly_{mac})
+        device_identifier = f"shelly_{mac}"
+        device_entry = None
+        for device in device_reg.devices.values():
+            for identifier_set in device.identifiers:
+                if device_identifier in identifier_set:
+                    device_entry = device
+                    break
+            if device_entry:
+                break
+
+        if not device_entry:
+            _LOGGER.warning("Device with MAC %s not found in device registry", mac)
+            return
+
+        # Assign device to area
+        if device_entry.area_id != area_id:
+            _LOGGER.info("Assigning device %s to area %s", device_entry.name, area_name)
+            device_reg.async_update_device(device_entry.id, area_id=area_id)
+        else:
+            _LOGGER.debug("Device %s already in area %s", device_entry.name, area_name)
 
     async def _async_subscribe_device_status(self, device: ShellyDevice) -> None:
         """Subscribe to device status for health monitoring."""
