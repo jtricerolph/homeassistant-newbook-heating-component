@@ -21,11 +21,23 @@ DASHBOARDS_DIR = "dashboards/newbook"
 class DashboardGenerator:
     """Generate Lovelace dashboards for Newbook integration."""
 
-    def __init__(self, hass: HomeAssistant, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, hass: HomeAssistant, entry_id: str | None = None) -> None:
         """Initialize dashboard generator."""
         self.hass = hass
-        self.config = config or {}
+        self.entry_id = entry_id
         self.dashboards_path = Path(hass.config.path(DASHBOARDS_DIR))
+
+    def _get_current_config(self) -> dict[str, Any]:
+        """Get the current configuration from the config entry."""
+        if not self.entry_id:
+            return {}
+
+        try:
+            entry = self.hass.data[DOMAIN][self.entry_id]["config"]
+            # Merge data and options to get complete config
+            return {**entry.data, **entry.options}
+        except (KeyError, AttributeError):
+            return {}
 
     def _get_category_sort_key(self, category_name: str) -> tuple[int, str]:
         """Get sort key for a category based on custom sort order.
@@ -34,7 +46,8 @@ class DashboardGenerator:
         - First element: position in custom order (or 999 if not in custom order)
         - Second element: category name (for alphabetical sorting of unlisted categories)
         """
-        sort_order_str = self.config.get(CONF_CATEGORY_SORT_ORDER, "")
+        config = self._get_current_config()
+        sort_order_str = config.get(CONF_CATEGORY_SORT_ORDER, "")
         if not sort_order_str:
             # No custom order, sort alphabetically
             return (0, category_name)
