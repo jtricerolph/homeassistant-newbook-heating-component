@@ -19,6 +19,7 @@ from .const import (
     CONF_API_KEY,
     CONF_BATTERY_CRITICAL_THRESHOLD,
     CONF_BATTERY_WARNING_THRESHOLD,
+    CONF_CATEGORY_SORT_ORDER,
     CONF_COMMAND_TIMEOUT,
     CONF_COOLING_OFFSET_MINUTES,
     CONF_DEFAULT_ARRIVAL_TIME,
@@ -493,6 +494,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_EXCLUDED_CATEGORIES,
                     default=current_config.get(CONF_EXCLUDED_CATEGORIES, []),
                 ): cv.multi_select({cat: cat for cat in sorted(categories)}),
+                vol.Optional(
+                    CONF_CATEGORY_SORT_ORDER,
+                    default=current_config.get(CONF_CATEGORY_SORT_ORDER, ""),
+                ): str,
             }
         )
 

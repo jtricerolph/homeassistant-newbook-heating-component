@@ -100,7 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     heating_controller = HeatingController(hass, coordinator, trv_monitor, config_dict)
 
     # Create dashboard generator
-    dashboard_generator = DashboardGenerator(hass)
+    dashboard_generator = DashboardGenerator(hass, config_dict)
 
     # Create MQTT discovery manager for Shelly devices
     mqtt_discovery = MQTTDiscoveryManager(hass, entry.entry_id)

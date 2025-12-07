@@ -10,7 +10,7 @@ import yaml
 
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import CONF_CATEGORY_SORT_ORDER, DOMAIN
 from .room_manager import normalize_room_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,10 +21,34 @@ DASHBOARDS_DIR = "dashboards/newbook"
 class DashboardGenerator:
     """Generate Lovelace dashboards for Newbook integration."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, config: dict[str, Any] | None = None) -> None:
         """Initialize dashboard generator."""
         self.hass = hass
+        self.config = config or {}
         self.dashboards_path = Path(hass.config.path(DASHBOARDS_DIR))
+
+    def _get_category_sort_key(self, category_name: str) -> tuple[int, str]:
+        """Get sort key for a category based on custom sort order.
+
+        Returns a tuple where:
+        - First element: position in custom order (or 999 if not in custom order)
+        - Second element: category name (for alphabetical sorting of unlisted categories)
+        """
+        sort_order_str = self.config.get(CONF_CATEGORY_SORT_ORDER, "")
+        if not sort_order_str:
+            # No custom order, sort alphabetically
+            return (0, category_name)
+
+        # Parse custom sort order
+        custom_order = [cat.strip() for cat in sort_order_str.split(",") if cat.strip()]
+
+        try:
+            # Category is in custom order list
+            position = custom_order.index(category_name)
+            return (position, category_name)
+        except ValueError:
+            # Category not in custom order, put it after all custom ordered ones
+            return (999, category_name)
 
     async def async_generate_all_dashboards(self, rooms: dict[str, dict[str, Any]]) -> None:
         """Generate single unified dashboard with multiple views."""
@@ -90,8 +114,11 @@ class DashboardGenerator:
             category_name = room_info.get("category_name", "Uncategorized")
             categories[category_name].append((room_id, room_info))
 
-        # Sort categories alphabetically
-        sorted_categories = sorted(categories.items())
+        # Sort categories by custom sort order (if configured) or alphabetically
+        sorted_categories = sorted(
+            categories.items(),
+            key=lambda x: self._get_category_sort_key(x[0])
+        )
 
         # Generate room cards grouped by category
         for category_name, category_rooms in sorted_categories:
@@ -694,8 +721,11 @@ Check signal strength in Shelly web interface → Device Info
             category_name = room_info.get("category_name", "Uncategorized")
             categories[category_name].append((room_id, room_info))
 
-        # Sort categories alphabetically
-        sorted_categories = sorted(categories.items())
+        # Sort categories by custom sort order (if configured) or alphabetically
+        sorted_categories = sorted(
+            categories.items(),
+            key=lambda x: self._get_category_sort_key(x[0])
+        )
 
         # Generate room cards grouped by category
         for category_name, category_rooms in sorted_categories:

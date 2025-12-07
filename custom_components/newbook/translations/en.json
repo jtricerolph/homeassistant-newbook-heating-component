@@ -92,11 +92,13 @@
         "description": "Exclude specific rooms or entire categories from monitoring and dashboard generation. Useful for virtual rooms (e.g., overflow bookings) or rooms without smart valves. Changes take effect after reloading the integration or restarting Home Assistant.",
         "data": {
           "excluded_rooms": "Excluded rooms",
-          "excluded_categories": "Excluded categories"
+          "excluded_categories": "Excluded categories",
+          "category_sort_order": "Category sort order"
         },
         "data_description": {
           "excluded_rooms": "Select rooms to exclude from monitoring (e.g., virtual overflow rooms)",
-          "excluded_categories": "Select categories to exclude from monitoring (e.g., Overflow, Admin)"
+          "excluded_categories": "Select categories to exclude from monitoring (e.g., Overflow, Admin)",
+          "category_sort_order": "Comma-separated list of categories to define display order (e.g., 'Standard,Deluxe,Suite'). Categories not listed will appear alphabetically after these."
         }
       },
       "map_shelly_devices": {

@@ -37,6 +37,7 @@ CONF_EXCLUDE_BATHROOM_DEFAULT: Final = "exclude_bathroom_default"
 # Room/Category Exclusions
 CONF_EXCLUDED_ROOMS: Final = "excluded_rooms"
 CONF_EXCLUDED_CATEGORIES: Final = "excluded_categories"
+CONF_CATEGORY_SORT_ORDER: Final = "category_sort_order"
 
 # Defaults
 DEFAULT_ARRIVAL_TIME: Final = "15:00:00"
