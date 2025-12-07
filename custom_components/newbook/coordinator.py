@@ -13,6 +13,8 @@ from .const import (
     BOOKING_STATUS_ARRIVED,
     BOOKING_STATUS_CONFIRMED,
     BOOKING_STATUS_UNCONFIRMED,
+    CONF_EXCLUDED_CATEGORIES,
+    CONF_EXCLUDED_ROOMS,
     DOMAIN,
 )
 
@@ -231,8 +233,35 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         }
 
     def get_all_rooms(self) -> dict[str, dict[str, Any]]:
-        """Get all discovered rooms."""
-        return self._sites.copy()
+        """Get all discovered rooms, excluding configured exclusions."""
+        excluded_rooms = self.config.get(CONF_EXCLUDED_ROOMS, [])
+        excluded_categories = self.config.get(CONF_EXCLUDED_CATEGORIES, [])
+
+        # If no exclusions configured, return all rooms
+        if not excluded_rooms and not excluded_categories:
+            return self._sites.copy()
+
+        # Filter out excluded rooms and categories
+        filtered_rooms = {}
+        for room_id, room_info in self._sites.items():
+            site_name = room_info.get("site_name", room_id)
+            category_name = room_info.get("category_name", "")
+
+            # Skip if room is explicitly excluded
+            if site_name in excluded_rooms:
+                _LOGGER.debug("Excluding room %s (site_name: %s)", room_id, site_name)
+                continue
+
+            # Skip if room's category is excluded
+            if category_name and category_name in excluded_categories:
+                _LOGGER.debug(
+                    "Excluding room %s (category: %s)", room_id, category_name
+                )
+                continue
+
+            filtered_rooms[room_id] = room_info
+
+        return filtered_rooms
 
     def get_room_booking(self, room_id: str) -> dict[str, Any] | None:
         """Get current/next booking for a room using priority logic.

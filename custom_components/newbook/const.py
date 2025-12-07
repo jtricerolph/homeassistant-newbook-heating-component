@@ -34,6 +34,10 @@ CONF_BATTERY_CRITICAL_THRESHOLD: Final = "battery_critical_threshold"
 CONF_SYNC_SETPOINTS_DEFAULT: Final = "sync_setpoints_default"
 CONF_EXCLUDE_BATHROOM_DEFAULT: Final = "exclude_bathroom_default"
 
+# Room/Category Exclusions
+CONF_EXCLUDED_ROOMS: Final = "excluded_rooms"
+CONF_EXCLUDED_CATEGORIES: Final = "excluded_categories"
+
 # Defaults
 DEFAULT_ARRIVAL_TIME: Final = "15:00:00"
 DEFAULT_DEPARTURE_TIME: Final = "10:00:00"

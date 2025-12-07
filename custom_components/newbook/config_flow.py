@@ -12,6 +12,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 
 from .api import NewbookApiClient, NewbookApiError, NewbookAuthError
 from .const import (
@@ -23,6 +24,8 @@ from .const import (
     CONF_DEFAULT_ARRIVAL_TIME,
     CONF_DEFAULT_DEPARTURE_TIME,
     CONF_EXCLUDE_BATHROOM_DEFAULT,
+    CONF_EXCLUDED_CATEGORIES,
+    CONF_EXCLUDED_ROOMS,
     CONF_HEATING_OFFSET_MINUTES,
     CONF_MAX_RETRY_ATTEMPTS,
     CONF_OCCUPIED_TEMPERATURE,
@@ -281,7 +284,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage the options - show menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["general_settings", "map_shelly_devices"],
+            menu_options=["general_settings", "room_exclusions", "map_shelly_devices"],
         )
 
     async def async_step_general_settings(
@@ -440,5 +443,54 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=data_schema,
             description_placeholders={
                 "unmapped_count": str(len(unmapped_devices)),
+            },
+        )
+
+    async def async_step_room_exclusions(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure room and category exclusions."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Get coordinator to get available rooms and categories
+        coordinator = self.hass.data[DOMAIN][self._config_entry.entry_id]["coordinator"]
+        rooms = coordinator.get_all_rooms()
+
+        # Get current config
+        current_config = {**self._config_entry.data, **self._config_entry.options}
+
+        # Build lists of available rooms and categories
+        room_options = {}
+        categories = set()
+
+        for room_id, room_info in rooms.items():
+            site_name = room_info.get("site_name", room_id)
+            room_options[site_name] = site_name
+
+            category_name = room_info.get("category_name")
+            if category_name:
+                categories.add(category_name)
+
+        # Create schema with multi-select
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_EXCLUDED_ROOMS,
+                    default=current_config.get(CONF_EXCLUDED_ROOMS, []),
+                ): cv.multi_select(room_options),
+                vol.Optional(
+                    CONF_EXCLUDED_CATEGORIES,
+                    default=current_config.get(CONF_EXCLUDED_CATEGORIES, []),
+                ): cv.multi_select({cat: cat for cat in sorted(categories)}),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="room_exclusions",
+            data_schema=data_schema,
+            description_placeholders={
+                "room_count": str(len(room_options)),
+                "category_count": str(len(categories)),
             },
         )
