@@ -120,9 +120,11 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
                 self._sites[site_id] = {
                     "site_id": site_id,
                     "site_name": site.get("site_name", f"Room {site_id}"),
-                    "site_category_name": site.get("site_category_name", "Unknown"),
+                    "category_name": site.get("category_name", "Uncategorized"),
+                    "category_id": site.get("category_id"),
                     "site_status": site.get("site_status", "Unknown"),
-                    "site_category_id": site.get("site_category_id"),
+                    "site_description": site.get("site_description"),
+                    "site_short_description": site.get("site_short_description"),
                 }
 
         # Mark rooms as discovered
