@@ -42,7 +42,9 @@ async def async_create_room_areas(hass: HomeAssistant, rooms: dict[str, Any]) ->
     area_reg = ar.async_get(hass)
 
     for room_id, room_info in rooms.items():
-        area_name = room_info.get("site_name", f"Room {room_id}")
+        # Use site_name directly from Newbook (e.g., "101", "102")
+        # This ensures consistency with MQTT-discovered devices
+        area_name = room_info.get("site_name", room_id)
 
         # Check if area already exists
         existing_area = None

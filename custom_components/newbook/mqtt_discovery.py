@@ -110,13 +110,14 @@ class MQTTDiscoveryManager:
             rooms = coordinator.get_all_rooms()
             for room_id, room_info in rooms.items():
                 if str(room_info.get("site_id")) == str(site_id):
-                    return room_info.get("site_name", f"Room {site_id}")
+                    return room_info.get("site_name", site_id)
 
-            # Room not found in Newbook, use default
-            return f"Room {site_id}"
+            # Room not found in Newbook, use site_id directly (e.g., "209")
+            # This ensures consistency with area naming from initial load
+            return site_id
         except Exception as err:
             _LOGGER.warning("Failed to lookup room site_name for %s: %s", site_id, err)
-            return f"Room {site_id}"
+            return site_id
 
     async def _async_process_device(self, device: ShellyDevice) -> None:
         """Process detected device and map to room if possible."""
