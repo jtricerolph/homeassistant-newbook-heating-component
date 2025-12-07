@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
@@ -131,12 +131,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_services(hass, entry.entry_id)
 
     # Setup coordinator listener to update heating when bookings change
-    async def _async_coordinator_updated():
+    @callback
+    def _coordinator_updated():
         """Handle coordinator updates."""
         _LOGGER.debug("Coordinator update triggered, refreshing all room states")
-        await heating_controller.async_update_all_rooms()
+        hass.async_create_task(heating_controller.async_update_all_rooms())
 
-    coordinator.async_add_listener(_async_coordinator_updated)
+    coordinator.async_add_listener(_coordinator_updated)
 
     # Setup time-based tracker to update room states every minute
     # This ensures states transition at the correct times (heating_start, arrival, etc.)
