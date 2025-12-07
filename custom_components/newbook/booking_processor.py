@@ -218,15 +218,19 @@ class BookingProcessor:
             )
             return ROOM_STATE_VACANT
 
-        # Check if we're in the heating up phase
-        if heating_start <= now < arrival:
-            _LOGGER.debug("Room %s: In heating_up phase (heating_start <= now < arrival)", room_id)
+        # Check if we're in the heating up phase (or past arrival but not checked in)
+        # Note: If we reach here, status is "confirmed" or "unconfirmed" (not "arrived")
+        # Keep heating until guest actually checks in, even if past scheduled arrival time
+        if heating_start <= now < cooling_start:
+            if now < arrival:
+                _LOGGER.debug("Room %s: In heating_up phase (heating_start <= now < arrival)", room_id)
+            else:
+                _LOGGER.debug(
+                    "Room %s: Past arrival time but guest not checked in yet (status=%s), keeping heating_up state",
+                    room_id,
+                    booking_status,
+                )
             return ROOM_STATE_HEATING_UP
-
-        # Check if we're in occupied period (after arrival, before cooling)
-        if arrival <= now < cooling_start:
-            _LOGGER.debug("Room %s: In occupied period (arrival <= now < cooling_start)", room_id)
-            return ROOM_STATE_OCCUPIED
 
         # Check if we're in cooling down phase
         if now >= cooling_start:
