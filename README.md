@@ -124,6 +124,7 @@ See [Shelly Quick Reference](docs/SHELLY_QUICK_REFERENCE.md) for configuration t
 
 - **[Installation Guide](docs/INSTALLATION.md)** - Detailed installation instructions
 - **[Configuration Guide](docs/CONFIGURATION.md)** - All settings explained
+- **[Heating Logic](docs/HEATING_LOGIC.md)** - How heating automation works
 - **[MQTT Setup](docs/MQTT_SETUP.md)** - Complete MQTT and Shelly TRV setup
 - **[Shelly Quick Reference](docs/SHELLY_QUICK_REFERENCE.md)** - Quick configuration guide
 - **[Privacy & Data Retention](docs/PRIVACY.md)** - Guest data privacy configuration
