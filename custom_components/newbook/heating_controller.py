@@ -89,14 +89,22 @@ class HeatingController:
         """
         # Get booking data
         booking = self.coordinator.get_room_booking(room_id)
+        _LOGGER.debug(
+            "Room %s: async_update_room_heating called - has_booking=%s, booking_data=%s",
+            room_id,
+            bool(booking),
+            booking if booking else "None",
+        )
 
         # Calculate heating schedule
         booking_processor = self.coordinator.booking_processor
         schedule = booking_processor.calculate_heating_schedule(room_id, booking) if booking else {}
+        _LOGGER.debug("Room %s: Schedule calculated - %s", room_id, schedule if schedule else "empty")
 
         # Determine current room state (ALWAYS calculate, regardless of auto mode)
         new_state = booking_processor.determine_room_state(room_id, booking, schedule)
         old_state = self._room_states.get(room_id, ROOM_STATE_VACANT)
+        _LOGGER.debug("Room %s: State determined - old=%s, new=%s", room_id, old_state, new_state)
 
         # Check for booking status changes (walk-in, early arrival, early departure)
         if booking:

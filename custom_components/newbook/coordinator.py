@@ -116,10 +116,17 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
 
         for site in sites:
             site_id = site.get("site_id")
+            site_name = site.get("site_name", f"Room {site_id}")
             if site_id:
+                _LOGGER.debug(
+                    "Processing site: site_id=%s, site_name=%s, category=%s",
+                    site_id,
+                    site_name,
+                    site.get("category_name", "Uncategorized"),
+                )
                 self._sites[site_id] = {
                     "site_id": site_id,
-                    "site_name": site.get("site_name", f"Room {site_id}"),
+                    "site_name": site_name,
                     "category_name": site.get("category_name", "Uncategorized"),
                     "category_id": site.get("category_id"),
                     "site_status": site.get("site_status", "Unknown"),
@@ -138,7 +145,15 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
 
         for booking in bookings:
             site_id = booking.get("site_id")
+            site_name = booking.get("site_name")
             booking_status = booking.get("booking_status", "").lower()
+
+            _LOGGER.debug(
+                "Processing booking: site_id=%s, site_name=%s, status=%s",
+                site_id,
+                site_name,
+                booking_status,
+            )
 
             # Only process active bookings
             if site_id and booking_status in ACTIVE_BOOKING_STATUSES:
@@ -281,7 +296,19 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
            that hasn't passed its departure date yet
         """
         bookings = self._bookings.get(room_id, [])
+        _LOGGER.debug(
+            "Room %s: get_room_booking called - found %d bookings in _bookings dict",
+            room_id,
+            len(bookings),
+        )
+
         if not bookings:
+            # Log all available room IDs in _bookings for debugging
+            _LOGGER.debug(
+                "Room %s: No bookings found. Available room IDs in _bookings: %s",
+                room_id,
+                list(self._bookings.keys()),
+            )
             return None
 
         now = datetime.now()
@@ -289,7 +316,9 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         # Priority 1: Find "arrived" booking (current guest)
         for booking in bookings:
             status = booking.get("booking_status", "").lower()
+            _LOGGER.debug("Room %s: Checking booking - status='%s', site_name='%s'", room_id, status, booking.get("site_name"))
             if status == BOOKING_STATUS_ARRIVED:
+                _LOGGER.debug("Room %s: Found arrived booking - returning it", room_id)
                 return booking
 
         # Priority 2: Find next relevant "confirmed" or "unconfirmed" booking

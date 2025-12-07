@@ -525,8 +525,8 @@ class TRVMonitor:
                 # Initialize health tracking if not already tracked
                 if entity_id not in self._health:
                     self._health[entity_id] = TRVHealth(entity_id)
+                    _LOGGER.debug("Initialized health tracking for %s", entity_id)
 
-        _LOGGER.debug("Discovered %d TRVs for health monitoring", len(discovered))
         return discovered
 
     def get_health_summary(self) -> dict[str, Any]:

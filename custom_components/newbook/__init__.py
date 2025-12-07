@@ -55,8 +55,6 @@ async def async_create_room_areas(hass: HomeAssistant, rooms: dict[str, Any]) ->
             # Create new area
             _LOGGER.info("Creating area for %s", area_name)
             area_reg.async_create(area_name)
-        else:
-            _LOGGER.debug("Area %s already exists", area_name)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -144,7 +142,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # independent of the coordinator polling schedule
     async def _async_time_based_update(_now=None):
         """Handle time-based room state updates."""
-        _LOGGER.debug("Time-based room state update triggered")
         await heating_controller.async_update_all_rooms()
 
     # Track time every 1 minute

@@ -159,47 +159,73 @@ class BookingProcessor:
 
         # No booking = vacant
         if not booking_data:
+            _LOGGER.debug("Room %s: No booking data, state=vacant", room_id)
             return ROOM_STATE_VACANT
 
         booking_status_raw = booking_data.get("booking_status", "")
         booking_status = booking_status_raw.lower()
+        _LOGGER.debug(
+            "Room %s: Determining state - booking_status_raw='%s', booking_status='%s', schedule_exists=%s",
+            room_id,
+            booking_status_raw,
+            booking_status,
+            bool(schedule),
+        )
 
         # Priority 1: Explicit departed status
         if booking_status == BOOKING_STATUS_DEPARTED:
+            _LOGGER.debug("Room %s: Booking status is departed, state=cooling_down", room_id)
             return ROOM_STATE_COOLING_DOWN
 
         # Priority 2: Explicit arrived status
         if booking_status == BOOKING_STATUS_ARRIVED:
+            _LOGGER.debug("Room %s: Booking status is arrived, state=occupied", room_id)
             return ROOM_STATE_OCCUPIED
 
         # Priority 3: Time-based state determination
         if not schedule:
             # Booking exists but no valid schedule
+            _LOGGER.debug("Room %s: No valid schedule, state=booked", room_id)
             return ROOM_STATE_BOOKED
 
         heating_start = schedule.get("heating_start")
         cooling_start = schedule.get("cooling_start")
         arrival = schedule.get("arrival")
 
+        _LOGGER.debug(
+            "Room %s: Schedule times - heating_start=%s, arrival=%s, cooling_start=%s, now=%s",
+            room_id,
+            heating_start,
+            arrival,
+            cooling_start,
+            now,
+        )
+
         if not heating_start or not cooling_start:
+            _LOGGER.debug("Room %s: Missing heating_start or cooling_start, state=booked", room_id)
             return ROOM_STATE_BOOKED
 
         # Check if we're in the heating up phase
         if heating_start <= now < arrival:
+            _LOGGER.debug("Room %s: In heating_up phase (heating_start <= now < arrival)", room_id)
             return ROOM_STATE_HEATING_UP
 
         # Check if we're in occupied period (after arrival, before cooling)
         if arrival <= now < cooling_start:
+            _LOGGER.debug("Room %s: In occupied period (arrival <= now < cooling_start)", room_id)
             return ROOM_STATE_OCCUPIED
 
         # Check if we're in cooling down phase
         if now >= cooling_start:
+            _LOGGER.debug("Room %s: In cooling_down phase (now >= cooling_start)", room_id)
             return ROOM_STATE_COOLING_DOWN
 
         # Before heating starts = booked but not heating yet
         if now < heating_start:
+            _LOGGER.debug("Room %s: Before heating starts (now < heating_start), state=booked", room_id)
             return ROOM_STATE_BOOKED
 
+        _LOGGER.warning("Room %s: No state matched, defaulting to vacant (this shouldn't happen)", room_id)
         return ROOM_STATE_VACANT
 
     def should_heat(
