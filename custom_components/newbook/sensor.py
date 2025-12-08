@@ -358,23 +358,18 @@ class NewbookHeatingStartTimeSensor(NewbookRoomSensorBase):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the heating start time."""
-        # TODO: Implement proper calculation in Phase 3
-        # For now, just return arrival time minus 2 hours
+        """Return the heating start time (arrival minus heating offset)."""
         booking = self._get_booking_data()
         if not booking:
             return None
 
-        arrival_str = booking.get("booking_arrival")
-        if arrival_str:
-            try:
-                from datetime import timedelta
-                naive_dt = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M:%S")
-                arrival = dt_util.as_local(naive_dt)
-                # Default 2 hour preheat
-                return arrival - timedelta(hours=2)
-            except (ValueError, TypeError):
-                return None
+        # Use booking processor to calculate schedule with proper offsets
+        booking_processor = self.coordinator.booking_processor
+        schedule = booking_processor.calculate_heating_schedule(self._room_id, booking)
+        if schedule:
+            heating_start = schedule.get("heating_start")
+            if heating_start:
+                return dt_util.as_local(heating_start)
         return None
 
 
@@ -398,20 +393,18 @@ class NewbookCoolingStartTimeSensor(NewbookRoomSensorBase):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the cooling start time."""
-        # TODO: Implement proper calculation in Phase 3
-        # For now, just return departure time
+        """Return the cooling start time (departure plus cooling offset)."""
         booking = self._get_booking_data()
         if not booking:
             return None
 
-        departure_str = booking.get("booking_departure")
-        if departure_str:
-            try:
-                naive_dt = datetime.strptime(departure_str, "%Y-%m-%d %H:%M:%S")
-                return dt_util.as_local(naive_dt)
-            except (ValueError, TypeError):
-                return None
+        # Use booking processor to calculate schedule with proper offsets
+        booking_processor = self.coordinator.booking_processor
+        schedule = booking_processor.calculate_heating_schedule(self._room_id, booking)
+        if schedule:
+            cooling_start = schedule.get("cooling_start")
+            if cooling_start:
+                return dt_util.as_local(cooling_start)
         return None
 
 
