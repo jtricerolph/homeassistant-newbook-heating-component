@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE, CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
@@ -40,25 +41,33 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_create_room_areas(hass: HomeAssistant, rooms: dict[str, Any]) -> None:
-    """Create Home Assistant areas for each discovered room."""
+    """Create Home Assistant areas for each discovered room and assign devices."""
     area_reg = ar.async_get(hass)
+    device_reg = dr.async_get(hass)
 
     for room_id, room_info in rooms.items():
         # Use site_name directly from Newbook (e.g., "101", "102")
         # This ensures consistency with MQTT-discovered devices
         area_name = room_info.get("site_name", room_id)
 
-        # Check if area already exists
-        existing_area = None
-        for area in area_reg.async_list_areas():
-            if area.name == area_name:
-                existing_area = area
+        # Check if area already exists, create if not
+        area = None
+        for existing_area in area_reg.async_list_areas():
+            if existing_area.name == area_name:
+                area = existing_area
                 break
 
-        if not existing_area:
+        if not area:
             # Create new area
             _LOGGER.info("Creating area for %s", area_name)
-            area_reg.async_create(area_name)
+            area = area_reg.async_create(area_name)
+
+        # Assign Newbook room device to area
+        # Room devices have identifiers {(DOMAIN, room_id)}
+        device = device_reg.async_get_device(identifiers={(DOMAIN, room_id)})
+        if device and device.area_id != area.id:
+            _LOGGER.debug("Assigning device %s to area %s", device.name, area_name)
+            device_reg.async_update_device(device.id, area_id=area.id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
