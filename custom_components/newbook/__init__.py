@@ -122,9 +122,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "room_manager": room_manager,
     }
 
-    # Perform initial room state calculation before sensors are created
-    _LOGGER.info("Calculating initial room states for %d rooms", len(coordinator.get_all_rooms()))
-    await heating_controller.async_update_all_rooms()
+    # Schedule initial room state calculation in background (don't block setup)
+    # This prevents slow/unresponsive TRVs from blocking integration initialization
+    _LOGGER.info("Scheduling initial room states for %d rooms (background)", len(coordinator.get_all_rooms()))
+    hass.async_create_task(heating_controller.async_update_all_rooms())
 
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
