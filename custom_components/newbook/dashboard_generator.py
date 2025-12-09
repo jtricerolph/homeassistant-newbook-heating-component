@@ -346,7 +346,6 @@ class DashboardGenerator:
                         "entity_id": f"climate.room_{site_name}_*",
                         "options": {
                             "type": "thermostat",
-                            "name": "{{ config.entity.split('.')[1] | replace('room_" + site_name + "_', '') | regex_replace('_trv$', '') | replace('_', ' ') | title }}",
                             "tap_action": {
                                 "action": "more-info",
                             },
@@ -362,7 +361,6 @@ class DashboardGenerator:
         section_cards.append(trvs_card)
 
         # TRV battery sensors - auto-discovers batteries for this room's TRVs
-        # Name template extracts just the location (e.g., "Bedroom")
         battery_card = {
             "type": "custom:auto-entities",
             "card": {
@@ -373,9 +371,6 @@ class DashboardGenerator:
                 "include": [
                     {
                         "entity_id": f"sensor.room_{site_name}_*_trv_battery",
-                        "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_" + site_name + "_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                        },
                     }
                 ],
             },
