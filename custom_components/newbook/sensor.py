@@ -96,23 +96,34 @@ async def async_setup_entry(
 
     @callback
     def async_add_trv_sensor(trv_info: dict) -> None:
-        """Add target temp sensor when TRV is discovered via MQTT."""
+        """Add TRV sensors when TRV is discovered via MQTT."""
         entity_id = trv_info["entity_id"]
         if entity_id in discovered_trvs:
             return
 
-        _LOGGER.info("Creating target temp sensor for TRV: %s", entity_id)
+        _LOGGER.info("Creating TRV sensors for: %s", entity_id)
         discovered_trvs.add(entity_id)
 
-        sensor = NewbookTRVTargetTempSensor(
-            hass,
-            entry.entry_id,
-            trv_info["site_id"],
-            trv_info["location"],
-            trv_info["mac"],
-            entity_id,
-        )
-        async_add_entities([sensor])
+        # Create both target temp and responsiveness sensors
+        sensors = [
+            NewbookTRVTargetTempSensor(
+                hass,
+                entry.entry_id,
+                trv_info["site_id"],
+                trv_info["location"],
+                trv_info["mac"],
+                entity_id,
+            ),
+            NewbookTRVResponsivenessSensor(
+                hass,
+                entry.entry_id,
+                trv_info["site_id"],
+                trv_info["location"],
+                trv_info["mac"],
+                entity_id,
+            ),
+        ]
+        async_add_entities(sensors)
 
     # Listen for TRV discovery signals
     entry.async_on_unload(
@@ -863,5 +874,116 @@ class NewbookTRVTargetTempSensor(SensorEntity):
                 if health.status_update_time
                 else None
             ),
+            "climate_entity": self._climate_entity_id,
+        }
+
+
+class NewbookTRVResponsivenessSensor(SensorEntity):
+    """Per-TRV responsiveness health sensor.
+
+    Shows the health state of the TRV (healthy/degraded/poor/unresponsive/calibration_error)
+    with response time statistics as attributes.
+    """
+
+    _attr_icon = "mdi:heart-pulse"
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry_id: str,
+        site_id: str,
+        location: str,
+        mac: str,
+        climate_entity_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        self.hass = hass
+        self._entry_id = entry_id
+        self._site_id = site_id
+        self._location = location
+        self._mac = mac
+        self._climate_entity_id = climate_entity_id
+
+        self._attr_unique_id = f"shelly_{mac}_responsiveness"
+        self._attr_name = "Responsiveness"
+
+        # Link to the TRV device (same device as climate entity)
+        # MQTT discovery creates devices with identifiers as ("mqtt", "shelly_{mac}")
+        self._attr_device_info = DeviceInfo(
+            identifiers={("mqtt", f"shelly_{mac}")},
+        )
+
+    def _get_trv_health(self):
+        """Get TRVHealth instance for this TRV."""
+        try:
+            trv_monitor = self.hass.data[DOMAIN][self._entry_id].get("trv_monitor")
+            if trv_monitor:
+                return trv_monitor.get_trv_health(self._climate_entity_id)
+        except (KeyError, AttributeError):
+            pass
+        return None
+
+    @property
+    def native_value(self) -> str:
+        """Return the health state."""
+        health = self._get_trv_health()
+        if health:
+            return health.health_state
+        return "unknown"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return response time statistics and health details."""
+        health = self._get_trv_health()
+        if not health:
+            return {
+                "avg_response_time": None,
+                "min_response_time": None,
+                "max_response_time": None,
+                "total_commands_72h": 0,
+                "failed_commands_72h": 0,
+                "success_rate": None,
+                "valve_position": None,
+                "is_calibrated": None,
+                "last_seen": None,
+                "current_attempts": 0,
+                "retry_count_24h": 0,
+            }
+
+        stats = health.get_response_stats_72h()
+
+        return {
+            "avg_response_time": (
+                round(stats["avg_response_time"], 1)
+                if stats["avg_response_time"]
+                else None
+            ),
+            "min_response_time": (
+                round(stats["min_response_time"], 1)
+                if stats["min_response_time"]
+                else None
+            ),
+            "max_response_time": (
+                round(stats["max_response_time"], 1)
+                if stats["max_response_time"]
+                else None
+            ),
+            "total_commands_72h": stats["total_commands_72h"],
+            "failed_commands_72h": stats["failed_commands_72h"],
+            "success_rate": (
+                round(stats["success_rate"], 1)
+                if stats["success_rate"]
+                else None
+            ),
+            "valve_position": health.valve_position,
+            "is_calibrated": health.is_calibrated,
+            "last_seen": (
+                health.last_seen.isoformat()
+                if health.last_seen
+                else None
+            ),
+            "current_attempts": health.current_attempts,
+            "retry_count_24h": health.retry_count_24h,
             "climate_entity": self._climate_entity_id,
         }

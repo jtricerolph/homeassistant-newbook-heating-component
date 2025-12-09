@@ -614,6 +614,72 @@ class DashboardGenerator:
         }
         section_cards.append(calibration_error_card)
 
+        # Unresponsive TRVs card (uses responsiveness sensor)
+        unresponsive_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "❌ Unresponsive TRVs",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_responsiveness",
+                        "state": "unresponsive",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "show_empty": True,
+        }
+        section_cards.append(unresponsive_card)
+
+        # Poor Health TRVs card (uses responsiveness sensor)
+        poor_health_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "⚠️ Poor Health TRVs",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_responsiveness",
+                        "state": "poor",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "show_empty": True,
+        }
+        section_cards.append(poor_health_card)
+
+        # Degraded TRVs card (uses responsiveness sensor)
+        degraded_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "🟡 Degraded TRVs",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "sensor.room_*_responsiveness",
+                        "state": "degraded",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "show_empty": True,
+        }
+        section_cards.append(degraded_card)
+
         # Poor WiFi Health card (uses wifi_health sensor with state "poor")
         poor_wifi_card = {
             "type": "custom:auto-entities",
