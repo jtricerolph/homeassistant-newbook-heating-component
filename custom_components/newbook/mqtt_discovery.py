@@ -616,6 +616,13 @@ class MQTTDiscoveryManager:
                         entity_id, valve_pos, calibrated, device_ip
                     )
 
+                    # Notify sensors to update their state
+                    async_dispatcher_send(
+                        self.hass,
+                        f"{SIGNAL_TRV_STATUS_UPDATED}_{self.entry_id}",
+                        entity_id,
+                    )
+
             except Exception as err:
                 _LOGGER.error("Error processing info for %s: %s", device.device_id, err)
 
