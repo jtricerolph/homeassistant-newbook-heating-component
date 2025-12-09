@@ -330,9 +330,9 @@ class DashboardGenerator:
         }
         section_cards.append(settings_card)
 
-        # TRV devices card - uses auto-entities to dynamically discover TRVs
+        # TRV devices card - uses auto-entities with mushroom climate cards
+        # Mushroom cards support Jinja2 templates for dynamic names
         # New TRVs will automatically appear when connected to MQTT
-        # Name template extracts just the location (e.g., "Bedroom" from "room_101_bedroom_trv")
         trvs_card = {
             "type": "custom:auto-entities",
             "card": {
@@ -345,7 +345,10 @@ class DashboardGenerator:
                     {
                         "entity_id": f"climate.room_{site_name}_*",
                         "options": {
-                            "type": "thermostat",
+                            "type": "custom:mushroom-climate-card",
+                            "name": "{{ state_attr(entity, 'friendly_name').split(' ')[2] | default(state_attr(entity, 'friendly_name')) | title }}",
+                            "show_temperature_control": True,
+                            "collapsible_controls": False,
                             "tap_action": {
                                 "action": "more-info",
                             },
