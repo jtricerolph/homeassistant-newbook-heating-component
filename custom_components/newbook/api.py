@@ -4,6 +4,7 @@ import base64
 from datetime import datetime
 import json
 import logging
+import time
 from typing import Any
 
 import aiohttp
@@ -62,10 +63,14 @@ class NewbookApiClient:
         # Add API key and region to all requests
         params["api_key"] = self.api_key
         params["region"] = self.region
+        # Add timestamp for cache busting
+        params["_t"] = int(time.time() * 1000)
 
         headers = {
             "Content-Type": "application/json",
             "Authorization": self._get_auth_header(),
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
         }
 
         try:

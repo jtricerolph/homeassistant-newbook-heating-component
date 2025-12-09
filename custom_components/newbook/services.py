@@ -53,26 +53,54 @@ CREATE_DASHBOARDS_SCHEMA = vol.Schema({})
 
 
 async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
-    """Register integration services."""
-    heating_controller = hass.data[DOMAIN][entry_id]["heating_controller"]
-    trv_monitor = hass.data[DOMAIN][entry_id]["trv_monitor"]
-    coordinator = hass.data[DOMAIN][entry_id]["coordinator"]
-    dashboard_generator = hass.data[DOMAIN][entry_id]["dashboard_generator"]
+    """Register integration services.
+
+    Note: Services are registered once globally but look up components dynamically
+    to handle config entry reloads correctly.
+    """
+    def _get_entry_data():
+        """Get entry data dynamically to handle reloads."""
+        # Find the first active entry
+        for eid, data in hass.data.get(DOMAIN, {}).items():
+            if isinstance(data, dict) and "coordinator" in data:
+                return data
+        return None
 
     async def async_refresh_bookings(call: ServiceCall) -> None:
         """Refresh booking data from Newbook API."""
         _LOGGER.info("Service called: refresh_bookings")
+        entry_data = _get_entry_data()
+        if not entry_data:
+            _LOGGER.error("No active Newbook entry found")
+            return
+
+        coordinator = entry_data["coordinator"]
+        _LOGGER.debug("Refreshing bookings via coordinator")
         await coordinator.async_refresh_bookings()
+        _LOGGER.info("Booking refresh complete")
 
     async def async_set_room_auto_mode(call: ServiceCall) -> None:
         """Enable or disable auto mode for a room."""
+        entry_data = _get_entry_data()
+        if not entry_data:
+            _LOGGER.error("No active Newbook entry found")
+            return
+
         room_id = call.data["room_id"]
         enabled = call.data["enabled"]
         _LOGGER.info("Service called: set_room_auto_mode for room %s to %s", room_id, enabled)
-        await heating_controller.async_set_room_auto_mode(room_id, enabled)
+        await entry_data["heating_controller"].async_set_room_auto_mode(room_id, enabled)
 
     async def async_force_room_temperature(call: ServiceCall) -> None:
         """Force a specific temperature for a room."""
+        entry_data = _get_entry_data()
+        if not entry_data:
+            _LOGGER.error("No active Newbook entry found")
+            return
+
+        coordinator = entry_data["coordinator"]
+        heating_controller = entry_data["heating_controller"]
+
         room_id = call.data["room_id"]
         temperature = call.data.get("temperature")
 
@@ -109,6 +137,14 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
 
     async def async_sync_room_valves(call: ServiceCall) -> None:
         """Manually sync all valves in a room."""
+        entry_data = _get_entry_data()
+        if not entry_data:
+            _LOGGER.error("No active Newbook entry found")
+            return
+
+        coordinator = entry_data["coordinator"]
+        trv_monitor = entry_data["trv_monitor"]
+
         room_id = call.data["room_id"]
         temperature = call.data.get("temperature")
 
@@ -146,6 +182,13 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
 
     async def async_retry_unresponsive_trvs(call: ServiceCall) -> None:
         """Retry sending commands to unresponsive TRVs."""
+        entry_data = _get_entry_data()
+        if not entry_data:
+            _LOGGER.error("No active Newbook entry found")
+            return
+
+        trv_monitor = entry_data["trv_monitor"]
+
         _LOGGER.info("Service called: retry_unresponsive_trvs")
         result = await trv_monitor.retry_unresponsive_trvs()
         successful = sum(1 for success in result.values() if success)
@@ -157,6 +200,14 @@ async def async_register_services(hass: HomeAssistant, entry_id: str) -> None:
 
     async def async_create_dashboards(call: ServiceCall) -> None:
         """Create or update all Newbook dashboards."""
+        entry_data = _get_entry_data()
+        if not entry_data:
+            _LOGGER.error("No active Newbook entry found")
+            return
+
+        coordinator = entry_data["coordinator"]
+        dashboard_generator = entry_data["dashboard_generator"]
+
         _LOGGER.info("Service called: create_dashboards")
 
         # Get all rooms

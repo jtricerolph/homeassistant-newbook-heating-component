@@ -143,17 +143,22 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         """Process and organize bookings by room."""
         self._bookings.clear()
 
+        # Log ALL bookings from API before filtering
+        _LOGGER.info("API returned %d bookings (before filtering)", len(bookings))
+        for booking in bookings:
+            _LOGGER.info(
+                "  API booking: id=%s, site_id=%s, site_name=%s, status=%s, arrival=%s",
+                booking.get("booking_id"),
+                booking.get("site_id"),
+                booking.get("site_name"),
+                booking.get("booking_status"),
+                booking.get("booking_arrival"),
+            )
+
         for booking in bookings:
             site_id = booking.get("site_id")
             site_name = booking.get("site_name")
             booking_status = booking.get("booking_status", "").lower()
-
-            _LOGGER.debug(
-                "Processing booking: site_id=%s, site_name=%s, status=%s",
-                site_id,
-                site_name,
-                booking_status,
-            )
 
             # Only process active bookings
             if site_id and booking_status in ACTIVE_BOOKING_STATUSES:
@@ -375,7 +380,54 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_refresh_bookings(self) -> None:
         """Manually refresh booking data."""
         _LOGGER.info("Manual booking refresh requested - forcing immediate update")
-        await self.async_refresh()
-        # Explicitly notify all listeners to update their states
-        _LOGGER.debug("Explicitly notifying %d listeners after manual refresh", len(self._listeners))
-        self.async_update_listeners()
+
+        # Log pre-refresh state for comparison
+        old_bookings_count = sum(len(b) for b in self._bookings.values())
+        old_booking_statuses = {
+            room_id: [
+                (b.get("booking_id"), b.get("booking_status"), b.get("booking_arrival"))
+                for b in bookings
+            ]
+            for room_id, bookings in self._bookings.items()
+        }
+        _LOGGER.info("Pre-refresh: %d total bookings across %d rooms",
+                     old_bookings_count, len(self._bookings))
+
+        # Directly call _async_update_data to force fresh API fetch
+        # (async_refresh() may not always force a new fetch)
+        try:
+            new_data = await self._async_update_data()
+            # Update the coordinator's data
+            self.async_set_updated_data(new_data)
+            _LOGGER.info("Data fetch complete, listeners notified")
+        except Exception as err:
+            _LOGGER.error("Failed to refresh bookings: %s", err)
+            return
+
+        # Log post-refresh state
+        new_bookings_count = sum(len(b) for b in self._bookings.values())
+        _LOGGER.info("Post-refresh: %d total bookings across %d rooms",
+                     new_bookings_count, len(self._bookings))
+
+        # Log all bookings for each room to help debug
+        for room_id, bookings in self._bookings.items():
+            for booking in bookings:
+                _LOGGER.info(
+                    "Room %s has booking: id=%s, status=%s, arrival=%s, departure=%s",
+                    room_id,
+                    booking.get("booking_id"),
+                    booking.get("booking_status"),
+                    booking.get("booking_arrival"),
+                    booking.get("booking_departure"),
+                )
+
+        # Log any status changes
+        for room_id, bookings in self._bookings.items():
+            new_statuses = [
+                (b.get("booking_id"), b.get("booking_status"), b.get("booking_arrival"))
+                for b in bookings
+            ]
+            old_statuses = old_booking_statuses.get(room_id, [])
+            if new_statuses != old_statuses:
+                _LOGGER.info("Room %s bookings changed: %s -> %s",
+                            room_id, old_statuses, new_statuses)
