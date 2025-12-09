@@ -330,8 +330,9 @@ class DashboardGenerator:
         }
         section_cards.append(settings_card)
 
-        # TRV devices card - uses auto-entities with mushroom climate cards
-        # Mushroom cards support Jinja2 templates for dynamic names
+        # TRV devices card - uses auto-entities with mushroom template cards
+        # Mushroom template cards support Jinja2 templates for dynamic names
+        # Uses ${entity} syntax which auto-entities replaces before passing to the card
         # New TRVs will automatically appear when connected to MQTT
         trvs_card = {
             "type": "custom:auto-entities",
@@ -345,10 +346,12 @@ class DashboardGenerator:
                     {
                         "entity_id": f"climate.room_{site_name}_*",
                         "options": {
-                            "type": "custom:mushroom-climate-card",
-                            "name": "{{ state_attr(entity, 'friendly_name').split(' ')[2] | default(state_attr(entity, 'friendly_name')) | title }}",
-                            "show_temperature_control": True,
-                            "collapsible_controls": False,
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[2] | default(state_attr(config.entity, 'friendly_name')) | title }}",
+                            "secondary": "{{ state_attr(config.entity, 'hvac_action') | title }} ⸱ {{ state_attr(config.entity, 'current_temperature') }}°C",
+                            "icon": "mdi:thermometer",
+                            "icon_color": "{% if is_state_attr(config.entity, 'hvac_action', 'heating') %}red{% else %}blue{% endif %}",
                             "tap_action": {
                                 "action": "more-info",
                             },
@@ -454,21 +457,30 @@ class DashboardGenerator:
                 battery_entities.append(state.entity_id)
 
         if battery_entities:
-            # Critical battery card (< 20%)
+            # Critical battery card (< 20%) - uses mushroom template cards for Jinja2 support
+            section_cards.append({
+                "type": "markdown",
+                "content": "### ❌ Critical Batteries (< 20%)",
+            })
             critical_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
-                    "type": "entities",
-                    "title": "❌ Critical Batteries (< 20%)",
+                    "type": "grid",
+                    "columns": 2,
                 },
+                "card_param": "cards",
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "state": "< 20",
                             "options": {
-                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                                "secondary_info": "last-changed",
+                                "type": "custom:mushroom-template-card",
+                                "entity": "${entity}",
+                                "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                                "secondary": "{{ states(config.entity) }}%",
+                                "icon": "mdi:battery-alert",
+                                "icon_color": "red",
                             },
                         }
                     ],
@@ -482,20 +494,29 @@ class DashboardGenerator:
             section_cards.append(critical_battery_card)
 
             # Low battery warning card (20% to 50%)
+            section_cards.append({
+                "type": "markdown",
+                "content": "### ⚠️ Low Battery (20-50%)",
+            })
             low_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
-                    "type": "entities",
-                    "title": "⚠️ Low Battery (20-50%)",
+                    "type": "grid",
+                    "columns": 2,
                 },
+                "card_param": "cards",
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "state": "< 50",
                             "options": {
-                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                                "secondary_info": "last-changed",
+                                "type": "custom:mushroom-template-card",
+                                "entity": "${entity}",
+                                "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                                "secondary": "{{ states(config.entity) }}%",
+                                "icon": "mdi:battery-low",
+                                "icon_color": "orange",
                             },
                         }
                     ],
@@ -515,19 +536,28 @@ class DashboardGenerator:
             section_cards.append(low_battery_card)
 
             # Good batteries card (>= 50%)
+            section_cards.append({
+                "type": "markdown",
+                "content": "### ✅ Good Batteries (≥ 50%)",
+            })
             good_batteries_card = {
                 "type": "custom:auto-entities",
                 "card": {
-                    "type": "entities",
-                    "title": "✅ Good Batteries (≥ 50%)",
+                    "type": "grid",
+                    "columns": 2,
                 },
+                "card_param": "cards",
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "options": {
-                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                                "secondary_info": "last-changed",
+                                "type": "custom:mushroom-template-card",
+                                "entity": "${entity}",
+                                "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                                "secondary": "{{ states(config.entity) }}%",
+                                "icon": "mdi:battery",
+                                "icon_color": "green",
                             },
                         }
                     ],
@@ -603,20 +633,29 @@ class DashboardGenerator:
         }
         section_cards.append(summary_card)
 
-        # All TRVs health card
+        # All TRVs health card - uses mushroom template cards for Jinja2 support
+        section_cards.append({
+            "type": "markdown",
+            "content": "### 🎚️ All TRV Devices",
+        })
         all_trvs_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "🎚️ All TRV Devices",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "domain": "climate",
                         "entity_id": "climate.room_*",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "{{ state_attr(config.entity, 'hvac_action') | title }}",
+                            "icon": "mdi:thermometer",
                         },
                     }
                 ],
@@ -628,20 +667,29 @@ class DashboardGenerator:
         section_cards.append(all_trvs_card)
 
         # Calibration Error card - TRVs needing calibration
+        section_cards.append({
+            "type": "markdown",
+            "content": "### 🔧 Calibration Required",
+        })
         calibration_error_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "🔧 Calibration Required",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "binary_sensor.room_*_trv_calibration",
                         "state": "on",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "Needs Calibration",
+                            "icon": "mdi:wrench",
+                            "icon_color": "orange",
                         },
                     }
                 ],
@@ -651,20 +699,29 @@ class DashboardGenerator:
         section_cards.append(calibration_error_card)
 
         # Unresponsive TRVs card (uses responsiveness sensor)
+        section_cards.append({
+            "type": "markdown",
+            "content": "### ❌ Unresponsive TRVs",
+        })
         unresponsive_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "❌ Unresponsive TRVs",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_responsiveness",
                         "state": "unresponsive",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_responsiveness$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "Unresponsive",
+                            "icon": "mdi:alert-circle",
+                            "icon_color": "red",
                         },
                     }
                 ],
@@ -674,20 +731,29 @@ class DashboardGenerator:
         section_cards.append(unresponsive_card)
 
         # Poor Health TRVs card (uses responsiveness sensor)
+        section_cards.append({
+            "type": "markdown",
+            "content": "### ⚠️ Poor Health TRVs",
+        })
         poor_health_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "⚠️ Poor Health TRVs",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_responsiveness",
                         "state": "poor",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_responsiveness$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "Poor",
+                            "icon": "mdi:alert",
+                            "icon_color": "orange",
                         },
                     }
                 ],
@@ -697,20 +763,29 @@ class DashboardGenerator:
         section_cards.append(poor_health_card)
 
         # Degraded TRVs card (uses responsiveness sensor)
+        section_cards.append({
+            "type": "markdown",
+            "content": "### 🟡 Degraded TRVs",
+        })
         degraded_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "🟡 Degraded TRVs",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_responsiveness",
                         "state": "degraded",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_responsiveness$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "Degraded",
+                            "icon": "mdi:alert-outline",
+                            "icon_color": "yellow",
                         },
                     }
                 ],
@@ -720,20 +795,29 @@ class DashboardGenerator:
         section_cards.append(degraded_card)
 
         # Poor WiFi Health card (uses wifi_health sensor with state "poor")
+        section_cards.append({
+            "type": "markdown",
+            "content": "### ❌ Poor WiFi (< -80 dBm)",
+        })
         poor_wifi_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "❌ Poor WiFi (< -80 dBm)",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_trv_wifi_health",
                         "state": "poor",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "Poor WiFi",
+                            "icon": "mdi:wifi-strength-1-alert",
+                            "icon_color": "red",
                         },
                     }
                 ],
@@ -743,20 +827,29 @@ class DashboardGenerator:
         section_cards.append(poor_wifi_card)
 
         # Fair WiFi Health card (uses wifi_health sensor with state "fair")
+        section_cards.append({
+            "type": "markdown",
+            "content": "### ⚠️ Fair WiFi (-70 to -80 dBm)",
+        })
         fair_wifi_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "⚠️ Fair WiFi (-70 to -80 dBm)",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_trv_wifi_health",
                         "state": "fair",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "Fair WiFi",
+                            "icon": "mdi:wifi-strength-2",
+                            "icon_color": "orange",
                         },
                     }
                 ],
@@ -765,20 +858,28 @@ class DashboardGenerator:
         }
         section_cards.append(fair_wifi_card)
 
-        # All WiFi signals card (shows actual RSSI values)
+        # All WiFi signals card (shows actual RSSI values) - uses mushroom template cards for Jinja2 support
+        section_cards.append({
+            "type": "markdown",
+            "content": "### 📶 All WiFi Signal Strength",
+        })
         wifi_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "📶 All WiFi Signal Strength",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-template-card",
+                            "entity": "${entity}",
+                            "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "secondary": "{{ states(config.entity) }} dBm",
+                            "icon": "mdi:wifi",
                         },
                     }
                 ],
@@ -1175,21 +1276,30 @@ Check signal strength in Shelly web interface → Device Info
                 battery_entities.append(state.entity_id)
 
         if battery_entities:
-            # Critical battery card (< 20%)
+            # Critical battery card (< 20%) - uses mushroom template cards for Jinja2 support
+            section_cards.append({
+                "type": "markdown",
+                "content": "### ❌ Critical Batteries (< 20%)",
+            })
             critical_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
-                    "type": "entities",
-                    "title": "❌ Critical Batteries (< 20%)",
+                    "type": "grid",
+                    "columns": 2,
                 },
+                "card_param": "cards",
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "state": "< 20",
                             "options": {
-                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                                "secondary_info": "last-changed",
+                                "type": "custom:mushroom-template-card",
+                                "entity": "${entity}",
+                                "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                                "secondary": "{{ states(config.entity) }}%",
+                                "icon": "mdi:battery-alert",
+                                "icon_color": "red",
                             },
                         }
                     ],
@@ -1203,20 +1313,29 @@ Check signal strength in Shelly web interface → Device Info
             section_cards.append(critical_battery_card)
 
             # Low battery warning card (20% to 50%)
+            section_cards.append({
+                "type": "markdown",
+                "content": "### ⚠️ Low Battery (20-50%)",
+            })
             low_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
-                    "type": "entities",
-                    "title": "⚠️ Low Battery (20-50%)",
+                    "type": "grid",
+                    "columns": 2,
                 },
+                "card_param": "cards",
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "state": "< 50",
                             "options": {
-                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                                "secondary_info": "last-changed",
+                                "type": "custom:mushroom-template-card",
+                                "entity": "${entity}",
+                                "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                                "secondary": "{{ states(config.entity) }}%",
+                                "icon": "mdi:battery-low",
+                                "icon_color": "orange",
                             },
                         }
                     ],
@@ -1236,19 +1355,28 @@ Check signal strength in Shelly web interface → Device Info
             section_cards.append(low_battery_card)
 
             # Good batteries card (>= 50%)
+            section_cards.append({
+                "type": "markdown",
+                "content": "### ✅ Good Batteries (≥ 50%)",
+            })
             good_batteries_card = {
                 "type": "custom:auto-entities",
                 "card": {
-                    "type": "entities",
-                    "title": "✅ Good Batteries (≥ 50%)",
+                    "type": "grid",
+                    "columns": 2,
                 },
+                "card_param": "cards",
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "options": {
-                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                                "secondary_info": "last-changed",
+                                "type": "custom:mushroom-template-card",
+                                "entity": "${entity}",
+                                "primary": "{{ state_attr(config.entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                                "secondary": "{{ states(config.entity) }}%",
+                                "icon": "mdi:battery",
+                                "icon_color": "green",
                             },
                         }
                     ],
@@ -1302,7 +1430,7 @@ Check signal strength in Shelly web interface → Device Info
         })
 
         # Health status guide
-        section_cards.append({
+        cards.append({
             "type": "markdown",
             "content": """
 ## Health Status Guide
@@ -1324,22 +1452,28 @@ Check signal strength in Shelly web interface → Device Info
                 "sensor.newbook_trv_health_unresponsive",
             ],
         }
-        section_cards.append(summary_card)
+        cards.append(summary_card)
 
-        # All TRVs health card
+        # All TRVs health card - uses mushroom cards for template support
+        cards.append({
+            "type": "markdown",
+            "content": "### 🎚️ All TRV Devices",
+        })
         all_trvs_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "🎚️ All TRV Devices",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "domain": "climate",
                         "entity_id": "climate.room_*",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                            "type": "custom:mushroom-entity-card",
+                            "name": "{{ state_attr(entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
                         },
                     }
                 ],
@@ -1348,23 +1482,29 @@ Check signal strength in Shelly web interface → Device Info
                 "method": "entity_id",
             },
         }
-        section_cards.append(all_trvs_card)
+        cards.append(all_trvs_card)
 
-        # Poor WiFi signal card (< -80 dBm)
+        # Poor WiFi signal card (< -80 dBm) - uses mushroom cards for template support
+        cards.append({
+            "type": "markdown",
+            "content": "### ❌ Poor WiFi Signal (< -80 dBm)",
+        })
         poor_wifi_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "❌ Poor WiFi Signal (< -80 dBm)",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "state": "< -80",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-entity-card",
+                            "name": "{{ state_attr(entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "icon_color": "red",
                         },
                     }
                 ],
@@ -1375,23 +1515,29 @@ Check signal strength in Shelly web interface → Device Info
                 "numeric": True,
             },
         }
-        section_cards.append(poor_wifi_card)
+        cards.append(poor_wifi_card)
 
-        # Fair WiFi signal card (-70 to -80 dBm)
+        # Fair WiFi signal card (-70 to -80 dBm) - uses mushroom cards for template support
+        cards.append({
+            "type": "markdown",
+            "content": "### ⚠️ Fair WiFi Signal (-70 to -80 dBm)",
+        })
         fair_wifi_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "⚠️ Fair WiFi Signal (-70 to -80 dBm)",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "state": "< -70",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-entity-card",
+                            "name": "{{ state_attr(entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
+                            "icon_color": "orange",
                         },
                     }
                 ],
@@ -1408,22 +1554,27 @@ Check signal strength in Shelly web interface → Device Info
                 "numeric": True,
             },
         }
-        section_cards.append(fair_wifi_card)
+        cards.append(fair_wifi_card)
 
-        # All WiFi signals card
+        # All WiFi signals card - uses mushroom cards for template support
+        cards.append({
+            "type": "markdown",
+            "content": "### 📶 All WiFi Signal Strength",
+        })
         wifi_card = {
             "type": "custom:auto-entities",
             "card": {
-                "type": "entities",
-                "title": "📶 All WiFi Signal Strength",
+                "type": "grid",
+                "columns": 2,
             },
+            "card_param": "cards",
             "filter": {
                 "include": [
                     {
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
-                            "secondary_info": "last-changed",
+                            "type": "custom:mushroom-entity-card",
+                            "name": "{{ state_attr(entity, 'friendly_name').split(' ')[0:3] | join(' ') }}",
                         },
                     }
                 ],
@@ -1433,7 +1584,7 @@ Check signal strength in Shelly web interface → Device Info
                 "numeric": True,
             },
         }
-        section_cards.append(wifi_card)
+        cards.append(wifi_card)
 
         # Quick actions
         actions_card = {
