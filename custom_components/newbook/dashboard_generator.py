@@ -330,40 +330,55 @@ class DashboardGenerator:
         }
         section_cards.append(settings_card)
 
-        # TRV devices card
-        trv_entities = []
-        for state in self.hass.states.async_all():
-            if (
-                state.entity_id.startswith("climate.room_")
-                and f"room_{site_name}_" in state.entity_id
-            ):
-                trv_entities.append(state.entity_id)
+        # TRV devices card - uses auto-entities to dynamically discover TRVs
+        # New TRVs will automatically appear when connected to MQTT
+        trvs_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "grid",
+                "columns": 1,
+            },
+            "card_param": "cards",
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": f"climate.room_{site_name}_*",
+                        "options": {
+                            "type": "thermostat",
+                        },
+                    }
+                ],
+            },
+            "sort": {
+                "method": "entity_id",
+            },
+            "show_empty": False,
+        }
+        section_cards.append(trvs_card)
 
-        if trv_entities:
-            trvs_card = {
+        # TRV battery sensors - auto-discovers batteries for this room's TRVs
+        battery_card = {
+            "type": "custom:auto-entities",
+            "card": {
                 "type": "entities",
-                "title": "🎚️ TRV Devices",
-                "entities": [],
-            }
-
-            for trv_entity in sorted(trv_entities):
-                trvs_card["entities"].append({
-                    "type": "custom:mushroom-climate-card",
-                    "entity": trv_entity,
-                    "show_temperature_control": True,
-                    "hvac_modes": ["heat", "off"],
-                    "collapsible_controls": True,
-                })
-
-                # Battery sensor if exists
-                battery_entity = trv_entity.replace("climate.", "sensor.") + "_battery"
-                if self.hass.states.get(battery_entity):
-                    trvs_card["entities"].append({
-                        "entity": battery_entity,
-                        "name": f"{trv_entity.split('_')[-2].title()} Battery",
-                    })
-
-            section_cards.append(trvs_card)
+                "title": "🔋 TRV Batteries",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": f"sensor.room_{site_name}_*_trv_battery",
+                        "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                        },
+                    }
+                ],
+            },
+            "sort": {
+                "method": "entity_id",
+            },
+            "show_empty": False,
+        }
+        section_cards.append(battery_card)
 
         # Manual override service card
         # Sync all valves to the temperature shown above (doesn't affect auto mode)
