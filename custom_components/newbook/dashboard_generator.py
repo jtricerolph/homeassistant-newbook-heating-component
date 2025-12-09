@@ -394,7 +394,7 @@ class DashboardGenerator:
             "title": room_name,
             "path": f"room-{normalized_id}",
             "icon": "mdi:bed",
-            "visible": False,  # Hidden from tabs, navigation only
+            "subview": True,  # Makes this a subview with proper back navigation
             "type": "sections",
             "cards": [],
             "sections": [
