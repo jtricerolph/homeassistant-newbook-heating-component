@@ -572,11 +572,14 @@ class DashboardGenerator:
                     {
                         "domain": "climate",
                         "entity_id": "climate.room_*",
+                        "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                        },
                     }
                 ],
             },
             "sort": {
-                "method": "name",
+                "method": "entity_id",
             },
         }
         section_cards.append(all_trvs_card)
@@ -594,6 +597,7 @@ class DashboardGenerator:
                         "entity_id": "binary_sensor.room_*_trv_calibration",
                         "state": "on",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -616,6 +620,7 @@ class DashboardGenerator:
                         "entity_id": "sensor.room_*_responsiveness",
                         "state": "unresponsive",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_responsiveness$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -638,6 +643,7 @@ class DashboardGenerator:
                         "entity_id": "sensor.room_*_responsiveness",
                         "state": "poor",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_responsiveness$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -660,6 +666,7 @@ class DashboardGenerator:
                         "entity_id": "sensor.room_*_responsiveness",
                         "state": "degraded",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_responsiveness$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -682,6 +689,7 @@ class DashboardGenerator:
                         "entity_id": "sensor.room_*_trv_wifi_health",
                         "state": "poor",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -704,6 +712,7 @@ class DashboardGenerator:
                         "entity_id": "sensor.room_*_trv_wifi_health",
                         "state": "fair",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -725,6 +734,7 @@ class DashboardGenerator:
                     {
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -1261,11 +1271,14 @@ Check signal strength in Shelly web interface → Device Info
                     {
                         "domain": "climate",
                         "entity_id": "climate.room_*",
+                        "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                        },
                     }
                 ],
             },
             "sort": {
-                "method": "name",
+                "method": "entity_id",
             },
         }
         section_cards.append(all_trvs_card)
@@ -1283,6 +1296,7 @@ Check signal strength in Shelly web interface → Device Info
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "state": "< -80",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -1309,6 +1323,7 @@ Check signal strength in Shelly web interface → Device Info
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "state": "< -70",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
@@ -1340,6 +1355,7 @@ Check signal strength in Shelly web interface → Device Info
                     {
                         "entity_id": "sensor.room_*_trv_wifi_signal",
                         "options": {
+                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                             "secondary_info": "last-changed",
                         },
                     }
