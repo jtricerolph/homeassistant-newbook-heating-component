@@ -18,6 +18,7 @@ from .const import (
     SHELLY_ANNOUNCE_TOPIC,
     SHELLY_ONLINE_TOPIC,
     SHELLY_STATUS_TOPIC,
+    SIGNAL_TRV_DISCOVERED,
 )
 from .shelly_detector import ShellyDetector, ShellyDevice
 
@@ -307,6 +308,19 @@ class MQTTDiscoveryManager:
         # Assign device to area (do this after publishing config to ensure device exists)
         if site_name:
             await self._async_assign_device_to_area(device.mac, site_name)
+
+        # Fire signal for sensor.py to create target temp sensor
+        async_dispatcher_send(
+            self.hass,
+            f"{SIGNAL_TRV_DISCOVERED}_{self.entry_id}",
+            {
+                "entity_id": f"climate.room_{site_id}_{location}",
+                "site_id": site_id,
+                "location": location,
+                "mac": device.mac,
+                "device_id": device.device_id,
+            },
+        )
 
     async def _async_publish_diagnostic_sensors(
         self,

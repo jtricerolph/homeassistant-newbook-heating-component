@@ -125,6 +125,9 @@ EVENT_TRV_FAILED: Final = f"{DOMAIN}_trv_failed"
 EVENT_TRV_DEGRADED: Final = f"{DOMAIN}_trv_degraded"
 EVENT_ROOM_STATUS_CHANGED: Final = f"{DOMAIN}_room_status_changed"
 
+# Dispatcher Signals
+SIGNAL_TRV_DISCOVERED: Final = f"{DOMAIN}_trv_discovered"
+
 # Services
 SERVICE_REFRESH_BOOKINGS: Final = "refresh_bookings"
 SERVICE_SET_ROOM_AUTO_MODE: Final = "set_room_auto_mode"
