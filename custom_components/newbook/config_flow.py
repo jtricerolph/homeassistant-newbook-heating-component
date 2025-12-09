@@ -293,7 +293,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage general settings."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Merge with existing options to preserve other settings (like room exclusions)
+            new_options = {**self._config_entry.options, **user_input}
+            return self.async_create_entry(title="", data=new_options)
 
         # Get current config
         current_config = {**self._config_entry.data, **self._config_entry.options}
@@ -412,7 +414,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     device_id, site_id, location
                 )
                 if success:
-                    return self.async_create_entry(title="", data={})
+                    # Preserve existing options (mapping is stored separately by MQTT discovery)
+                    return self.async_create_entry(title="", data=self._config_entry.options)
 
             return self.async_abort(reason="mapping_failed")
 
@@ -452,7 +455,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Configure room and category exclusions."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Merge with existing options to preserve other settings (like general settings)
+            new_options = {**self._config_entry.options, **user_input}
+            return self.async_create_entry(title="", data=new_options)
 
         # Get coordinator to get available rooms and categories
         # Use unfiltered version to show ALL rooms including already excluded ones
