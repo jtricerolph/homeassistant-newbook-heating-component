@@ -212,9 +212,9 @@ class HeatingController:
             state,
         )
 
-        # Get TRVs for this room
-        exclude_bathroom = self.get_exclude_bathroom(room_id)
-        trvs = self.trv_monitor.filter_room_trvs(room_id, exclude_bathroom)
+        # Get ALL TRVs for this room (including bathroom)
+        # Note: exclude_bathroom setting is for valve SYNC (guest adjustments), not initial heating
+        trvs = self.trv_monitor.get_room_trvs(room_id)
 
         if not trvs:
             _LOGGER.warning("Room %s: No TRVs found", room_id)
