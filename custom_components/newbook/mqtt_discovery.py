@@ -318,6 +318,12 @@ class MQTTDiscoveryManager:
         location = mapping["location"]
         entity_id_base = f"room_{site_id}_{location}"
 
+        # Common device info for all diagnostic sensors
+        device_info = {
+            "identifiers": [f"shelly_{device.mac}"],
+            "name": f"Room {site_id} {location.capitalize()} TRV",
+        }
+
         # Battery sensor
         battery_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_battery/config"
         battery_config = {
@@ -332,9 +338,7 @@ class MQTTDiscoveryManager:
             "entity_category": "diagnostic",
             "json_attributes_topic": f"shellies/{device.device_id}/info",
             "json_attributes_template": '{{ {"voltage": value_json.bat.voltage, "charging": value_json.charger} | tojson }}',
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-            },
+            "device": device_info,
         }
 
         # WiFi Signal sensor
@@ -351,9 +355,7 @@ class MQTTDiscoveryManager:
             "entity_category": "diagnostic",
             "json_attributes_topic": f"shellies/{device.device_id}/info",
             "json_attributes_template": '{{ {"ssid": value_json.wifi_sta.ssid, "ip": value_json.wifi_sta.ip} | tojson }}',
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-            },
+            "device": device_info,
         }
 
         # WiFi Health sensor (derived from RSSI: good >= -70, fair >= -80, poor < -80)
@@ -368,9 +370,7 @@ class MQTTDiscoveryManager:
             "entity_category": "diagnostic",
             "json_attributes_topic": f"shellies/{device.device_id}/info",
             "json_attributes_template": '{{ {"rssi": value_json.wifi_sta.rssi, "ssid": value_json.wifi_sta.ssid} | tojson }}',
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-            },
+            "device": device_info,
         }
 
         # Calibration status binary sensor
@@ -385,9 +385,7 @@ class MQTTDiscoveryManager:
             "payload_off": "OFF",
             "device_class": "problem",
             "entity_category": "diagnostic",
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-            },
+            "device": device_info,
         }
 
         # Update available binary sensor
@@ -404,9 +402,7 @@ class MQTTDiscoveryManager:
             "entity_category": "diagnostic",
             "json_attributes_topic": f"shellies/{device.device_id}/info",
             "json_attributes_template": '{% set update = value_json.get("update", {}) %}{{ {"status": update.get("status", "unknown"), "new_version": update.get("new_version", ""), "old_version": update.get("old_version", "")} | tojson }}',
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-            },
+            "device": device_info,
         }
 
         # Valve position sensor
@@ -421,9 +417,7 @@ class MQTTDiscoveryManager:
             "state_class": "measurement",
             "entity_category": "diagnostic",
             "icon": "mdi:valve",
-            "device": {
-                "identifiers": [f"shelly_{device.mac}"],
-            },
+            "device": device_info,
         }
 
         _LOGGER.info("Publishing diagnostic sensor discovery configs for %s", device.device_id)
