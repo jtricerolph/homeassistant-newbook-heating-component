@@ -6,10 +6,11 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE, CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api import NewbookApiClient
@@ -25,6 +26,7 @@ from .const import (
     SERVICE_RETRY_UNRESPONSIVE_TRVS,
     SERVICE_SET_ROOM_AUTO_MODE,
     SERVICE_SYNC_ROOM_VALVES,
+    SIGNAL_TRV_STATUS_UPDATED,
 )
 from .coordinator import NewbookDataUpdateCoordinator
 from .dashboard_generator import DashboardGenerator
@@ -121,6 +123,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "mqtt_discovery": mqtt_discovery,
         "room_manager": room_manager,
     }
+
+    # Listen for climate.set_temperature service calls to track HA commands
+    @callback
+    def _handle_service_call(event: Event) -> None:
+        """Track climate.set_temperature calls for origin detection."""
+        if event.data.get("domain") != "climate":
+            return
+        if event.data.get("service") != "set_temperature":
+            return
+
+        service_data = event.data.get("service_data", {})
+        entity_ids = service_data.get(ATTR_ENTITY_ID, [])
+        target_temp = service_data.get(ATTR_TEMPERATURE)
+
+        if not target_temp:
+            return
+
+        # Handle single entity_id or list
+        if isinstance(entity_ids, str):
+            entity_ids = [entity_ids]
+
+        # Record HA command for any TRV entities
+        for entity_id in entity_ids:
+            if entity_id.startswith("climate.room_"):
+                health = trv_monitor.get_trv_health(entity_id)
+                health.record_ha_command(float(target_temp))
+                _LOGGER.info("Tracked HA command for %s: %.1f°C", entity_id, target_temp)
+
+                # Notify sensors to update
+                async_dispatcher_send(
+                    hass,
+                    f"{SIGNAL_TRV_STATUS_UPDATED}_{entry.entry_id}",
+                    entity_id,
+                )
+
+    # Subscribe to service call events
+    entry.async_on_unload(
+        hass.bus.async_listen("call_service", _handle_service_call)
+    )
 
     # Schedule initial room state calculation in background (don't block setup)
     # This prevents slow/unresponsive TRVs from blocking integration initialization
