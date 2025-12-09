@@ -347,6 +347,9 @@ class DashboardGenerator:
                         "options": {
                             "type": "thermostat",
                             "name": "{{ config.entity.split('.')[1] | replace('room_" + site_name + "_', '') | regex_replace('_trv$', '') | replace('_', ' ') | title }}",
+                            "tap_action": {
+                                "action": "more-info",
+                            },
                         },
                     }
                 ],
