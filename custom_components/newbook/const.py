@@ -127,6 +127,7 @@ EVENT_ROOM_STATUS_CHANGED: Final = f"{DOMAIN}_room_status_changed"
 
 # Dispatcher Signals
 SIGNAL_TRV_DISCOVERED: Final = f"{DOMAIN}_trv_discovered"
+SIGNAL_TRV_STATUS_UPDATED: Final = f"{DOMAIN}_trv_status_updated"
 
 # Services
 SERVICE_REFRESH_BOOKINGS: Final = "refresh_bookings"

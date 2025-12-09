@@ -22,6 +22,7 @@ from .const import (
     DOMAIN,
     ROOM_STATE_VACANT,
     SIGNAL_TRV_DISCOVERED,
+    SIGNAL_TRV_STATUS_UPDATED,
 )
 from .coordinator import NewbookDataUpdateCoordinator
 from .room_manager import RoomManager
@@ -804,6 +805,7 @@ class NewbookTRVTargetTempSensor(SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:thermometer"
     _attr_has_entity_name = True
+    _attr_should_poll = False  # We update via dispatcher signals
 
     def __init__(
         self,
@@ -829,6 +831,24 @@ class NewbookTRVTargetTempSensor(SensorEntity):
         # MQTT discovery creates devices with identifiers as ("mqtt", "shelly_{mac}")
         self._attr_device_info = DeviceInfo(
             identifiers={("mqtt", f"shelly_{mac}")},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register for status update signals when added to hass."""
+        await super().async_added_to_hass()
+
+        @callback
+        def handle_status_update(updated_entity_id: str) -> None:
+            """Handle TRV status update signal."""
+            if updated_entity_id == self._climate_entity_id:
+                self.async_write_ha_state()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{SIGNAL_TRV_STATUS_UPDATED}_{self._entry_id}",
+                handle_status_update,
+            )
         )
 
     def _get_trv_health(self):
@@ -887,6 +907,7 @@ class NewbookTRVResponsivenessSensor(SensorEntity):
 
     _attr_icon = "mdi:heart-pulse"
     _attr_has_entity_name = True
+    _attr_should_poll = False  # We update via dispatcher signals
 
     def __init__(
         self,
@@ -912,6 +933,24 @@ class NewbookTRVResponsivenessSensor(SensorEntity):
         # MQTT discovery creates devices with identifiers as ("mqtt", "shelly_{mac}")
         self._attr_device_info = DeviceInfo(
             identifiers={("mqtt", f"shelly_{mac}")},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register for status update signals when added to hass."""
+        await super().async_added_to_hass()
+
+        @callback
+        def handle_status_update(updated_entity_id: str) -> None:
+            """Handle TRV status update signal."""
+            if updated_entity_id == self._climate_entity_id:
+                self.async_write_ha_state()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{SIGNAL_TRV_STATUS_UPDATED}_{self._entry_id}",
+                handle_status_update,
+            )
         )
 
     def _get_trv_health(self):

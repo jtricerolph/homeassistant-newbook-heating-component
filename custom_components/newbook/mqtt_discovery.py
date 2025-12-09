@@ -19,6 +19,7 @@ from .const import (
     SHELLY_ONLINE_TOPIC,
     SHELLY_STATUS_TOPIC,
     SIGNAL_TRV_DISCOVERED,
+    SIGNAL_TRV_STATUS_UPDATED,
 )
 from .shelly_detector import ShellyDetector, ShellyDevice
 
@@ -551,6 +552,13 @@ class MQTTDiscoveryManager:
                         health = trv_monitor.get_trv_health(entity_id)
                         health.update_from_status(float(target_temp))
                         _LOGGER.debug("Updated %s target temp from status: %.1f", entity_id, target_temp)
+
+                        # Notify sensors to update their state
+                        async_dispatcher_send(
+                            self.hass,
+                            f"{SIGNAL_TRV_STATUS_UPDATED}_{self.entry_id}",
+                            entity_id,
+                        )
 
             except Exception as err:
                 _LOGGER.error("Error processing status for %s: %s", device.device_id, err)
