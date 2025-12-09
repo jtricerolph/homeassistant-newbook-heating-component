@@ -303,6 +303,9 @@ class MQTTDiscoveryManager:
         # Subscribe to status for health monitoring
         await self._async_subscribe_device_status(device, mapping)
 
+        # Subscribe to command topic to track HA commands
+        await self._async_subscribe_device_commands(device, mapping)
+
         # Publish diagnostic sensors
         await self._async_publish_diagnostic_sensors(device, mapping)
 
@@ -567,6 +570,47 @@ class MQTTDiscoveryManager:
             self.hass,
             status_topic,
             status_received,
+            qos=1,
+        )
+
+    async def _async_subscribe_device_commands(self, device: ShellyDevice, mapping: dict) -> None:
+        """Subscribe to command topic to track HA commands for origin detection."""
+        command_topic = f"shellies/{device.device_id}/thermostat/0/command/target_t"
+        site_id = mapping["site_id"]
+        location = mapping["location"]
+
+        @callback
+        async def command_received(msg: mqtt.ReceiveMessage) -> None:
+            """Handle command sent to TRV (track HA commands)."""
+            try:
+                # The payload is just a number (the target temp)
+                target_temp = float(msg.payload)
+                _LOGGER.debug("HA command to %s: set temp to %.1f", device.device_id, target_temp)
+
+                # Record this as an HA command for origin detection
+                trv_monitor = self.hass.data.get(DOMAIN, {}).get(self.entry_id, {}).get("trv_monitor")
+                if trv_monitor:
+                    entity_id = f"climate.room_{site_id}_{location}"
+                    health = trv_monitor.get_trv_health(entity_id)
+                    health.record_ha_command(target_temp)
+                    _LOGGER.debug("Recorded HA command for %s: %.1f", entity_id, target_temp)
+
+                    # Notify sensors to update their state
+                    async_dispatcher_send(
+                        self.hass,
+                        f"{SIGNAL_TRV_STATUS_UPDATED}_{self.entry_id}",
+                        entity_id,
+                    )
+
+            except (ValueError, TypeError) as err:
+                _LOGGER.debug("Could not parse command payload for %s: %s", device.device_id, err)
+            except Exception as err:
+                _LOGGER.error("Error processing command for %s: %s", device.device_id, err)
+
+        await mqtt.async_subscribe(
+            self.hass,
+            command_topic,
+            command_received,
             qos=1,
         )
 
