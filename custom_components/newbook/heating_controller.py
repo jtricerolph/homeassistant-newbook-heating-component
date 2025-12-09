@@ -1,10 +1,11 @@
 """Heating controller with state machine logic."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
+from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant, callback
 
 from .booking_processor import BookingProcessor
@@ -28,6 +29,9 @@ from .trv_monitor import TRVMonitor
 
 _LOGGER = logging.getLogger(__name__)
 
+# Minimum time between syncs to prevent loops (seconds)
+SYNC_DEBOUNCE_SECONDS = 30
+
 
 class HeatingController:
     """Control heating based on booking data and room state."""
@@ -46,6 +50,8 @@ class HeatingController:
         self.config = config
         self._room_states: dict[str, str] = {}  # Track current state per room
         self._last_booking_status: dict[str, str] = {}  # Track booking status changes
+        self._last_sync_time: dict[str, datetime] = {}  # Track last sync per TRV to debounce
+        self._syncing_trvs: set[str] = set()  # TRVs currently being synced (to prevent loops)
 
     def get_room_setting(
         self, room_id: str, setting_key: str, default: Any
@@ -355,3 +361,143 @@ class HeatingController:
                 summary[state] += 1
 
         return summary
+
+    def get_room_id_for_trv(self, entity_id: str) -> str | None:
+        """Find the room ID that a TRV belongs to.
+
+        Returns the room_id if found, None otherwise.
+        """
+        rooms = self.coordinator.get_all_rooms()
+
+        for room_id, room_info in rooms.items():
+            site_name = room_info.get("site_name", room_id)
+            # TRV entity IDs follow pattern: climate.room_{site_name}_{location}_trv
+            if f"room_{site_name}_" in entity_id:
+                return room_id
+
+        return None
+
+    async def async_handle_guest_temperature_change(
+        self,
+        entity_id: str,
+        new_temperature: float,
+    ) -> None:
+        """Handle a guest-initiated temperature change on a TRV.
+
+        This syncs the temperature to other TRVs in the same room,
+        respecting the sync_setpoints and exclude_bathroom_from_sync settings.
+        """
+        # Check if this TRV is currently being synced (to prevent loops)
+        if entity_id in self._syncing_trvs:
+            _LOGGER.debug(
+                "Ignoring temp change on %s - currently being synced",
+                entity_id,
+            )
+            return
+
+        # Debounce: check if we recently synced from this TRV
+        last_sync = self._last_sync_time.get(entity_id)
+        if last_sync:
+            time_since_sync = (datetime.now() - last_sync).total_seconds()
+            if time_since_sync < SYNC_DEBOUNCE_SECONDS:
+                _LOGGER.debug(
+                    "Ignoring temp change on %s - synced %.0fs ago (debounce: %ds)",
+                    entity_id,
+                    time_since_sync,
+                    SYNC_DEBOUNCE_SECONDS,
+                )
+                return
+
+        # Find which room this TRV belongs to
+        room_id = self.get_room_id_for_trv(entity_id)
+        if not room_id:
+            _LOGGER.debug(
+                "Cannot sync %s - room not found",
+                entity_id,
+            )
+            return
+
+        # Check if sync is enabled for this room
+        if not self.get_sync_setpoints(room_id):
+            _LOGGER.debug(
+                "Room %s: Valve sync disabled, not syncing from %s",
+                room_id,
+                entity_id,
+            )
+            return
+
+        # Get all TRVs in the room
+        all_trvs = self.trv_monitor.get_room_trvs(room_id)
+        if len(all_trvs) <= 1:
+            _LOGGER.debug(
+                "Room %s: Only one TRV, nothing to sync",
+                room_id,
+            )
+            return
+
+        # Determine which TRVs to sync to (exclude the source TRV)
+        exclude_bathroom = self.get_exclude_bathroom(room_id)
+        target_trvs = []
+
+        for trv in all_trvs:
+            # Skip the source TRV
+            if trv == entity_id:
+                continue
+
+            # Skip bathroom TRVs if exclude_bathroom is enabled
+            if exclude_bathroom and "bathroom" in trv.lower():
+                _LOGGER.debug(
+                    "Room %s: Excluding bathroom TRV %s from sync",
+                    room_id,
+                    trv,
+                )
+                continue
+
+            target_trvs.append(trv)
+
+        if not target_trvs:
+            _LOGGER.debug(
+                "Room %s: No target TRVs to sync to",
+                room_id,
+            )
+            return
+
+        _LOGGER.info(
+            "Room %s: Guest adjusted %s to %.1f°C - syncing to %d other TRV(s)",
+            room_id,
+            entity_id,
+            new_temperature,
+            len(target_trvs),
+        )
+
+        # Mark target TRVs as being synced (to prevent loops)
+        for trv in target_trvs:
+            self._syncing_trvs.add(trv)
+
+        # Record sync time for debouncing
+        self._last_sync_time[entity_id] = datetime.now()
+
+        try:
+            # Sync temperature to target TRVs
+            results = await self.trv_monitor.batch_set_room_temperature(
+                room_id, target_trvs, new_temperature
+            )
+
+            # Log results
+            successful = sum(1 for success in results.values() if success)
+            _LOGGER.info(
+                "Room %s: Valve sync complete - %d/%d TRVs synced to %.1f°C",
+                room_id,
+                successful,
+                len(target_trvs),
+                new_temperature,
+            )
+        finally:
+            # Clear syncing flag after a delay to allow state updates to propagate
+            async def clear_syncing_flag():
+                import asyncio
+                await asyncio.sleep(10)  # Wait for state changes to settle
+                for trv in target_trvs:
+                    self._syncing_trvs.discard(trv)
+
+            self.hass.async_create_task(clear_syncing_flag())

@@ -12,7 +12,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
 from .api import NewbookApiClient
 from .const import (
@@ -170,6 +170,64 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Subscribe to service call events
     entry.async_on_unload(
         hass.bus.async_listen("call_service", _handle_service_call)
+    )
+
+    # Listen for TRV state changes to detect guest adjustments
+    @callback
+    def _handle_trv_state_change(event: Event) -> None:
+        """Handle TRV state changes to detect guest temperature adjustments."""
+        entity_id = event.data.get("entity_id")
+        if not entity_id or not entity_id.startswith("climate.room_"):
+            return
+
+        old_state = event.data.get("old_state")
+        new_state = event.data.get("new_state")
+
+        if not old_state or not new_state:
+            return
+
+        # Get the temperature attribute
+        old_temp = old_state.attributes.get(ATTR_TEMPERATURE)
+        new_temp = new_state.attributes.get(ATTR_TEMPERATURE)
+
+        if old_temp is None or new_temp is None:
+            return
+
+        # Check if temperature actually changed
+        if abs(float(old_temp) - float(new_temp)) < 0.1:
+            return
+
+        # Check if this was an HA command or a guest change
+        health = trv_monitor.get_trv_health(entity_id)
+        ha_commanded_temp = health.ha_last_command_temp
+
+        # If the new temp matches what HA commanded, it's not a guest change
+        if ha_commanded_temp is not None and abs(float(new_temp) - ha_commanded_temp) < 0.1:
+            _LOGGER.debug(
+                "%s temp changed to %.1f°C (matches HA command, not a guest change)",
+                entity_id,
+                new_temp,
+            )
+            return
+
+        # This is likely a guest change - sync to other TRVs
+        _LOGGER.info(
+            "%s temp changed from %.1f°C to %.1f°C (guest change detected, HA last commanded: %s)",
+            entity_id,
+            old_temp,
+            new_temp,
+            f"{ha_commanded_temp:.1f}°C" if ha_commanded_temp else "None",
+        )
+
+        # Trigger valve sync
+        hass.async_create_task(
+            heating_controller.async_handle_guest_temperature_change(entity_id, float(new_temp))
+        )
+
+    # Subscribe to state change events for all climate entities
+    # We filter for room_* TRVs in the callback
+    entry.async_on_unload(
+        hass.bus.async_listen("state_changed", _handle_trv_state_change)
     )
 
     # Schedule initial room state calculation in background (don't block setup)
