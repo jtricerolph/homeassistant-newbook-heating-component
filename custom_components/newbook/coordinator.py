@@ -397,7 +397,17 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
         # (async_refresh() may not always force a new fetch)
         try:
             new_data = await self._async_update_data()
-            # Update the coordinator's data
+
+            # Update heating controller FIRST, BEFORE notifying sensors
+            # This ensures _room_states is current when sensors read it
+            for entry_id, data in self.hass.data.get(DOMAIN, {}).items():
+                if isinstance(data, dict) and "heating_controller" in data:
+                    heating_controller = data["heating_controller"]
+                    _LOGGER.debug("Updating heating controller room states before notifying sensors")
+                    await heating_controller.async_update_all_rooms()
+                    break
+
+            # Now notify sensors (they will read the updated _room_states)
             self.async_set_updated_data(new_data)
             _LOGGER.info("Data fetch complete, listeners notified")
         except Exception as err:
