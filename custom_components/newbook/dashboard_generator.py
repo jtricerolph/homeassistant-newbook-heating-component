@@ -287,6 +287,7 @@ class DashboardGenerator:
         control_card = {
             "type": "entities",
             "title": "⚙️ Heating Control",
+            "show_header_toggle": False,
             "entities": [
                 {
                     "entity": f"switch.{site_name}_auto_mode",
