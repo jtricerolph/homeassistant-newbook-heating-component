@@ -365,30 +365,18 @@ class DashboardGenerator:
             section_cards.append(trvs_card)
 
         # Manual override service card
-        # Note: Shows occupied temperature number for reference, buttons use its value
+        # Sync all valves to the temperature shown above (doesn't affect auto mode)
         override_card = {
             "type": "entities",
-            "title": "🔧 Manual Override",
+            "title": "🔧 Manual Sync",
             "entities": [
                 {
                     "entity": f"number.{site_name}_occupied_temperature",
-                    "name": "Override Temperature",
+                    "name": "Target Temperature",
                 },
                 {
                     "type": "button",
-                    "name": "Force Temperature (Uses Above)",
-                    "icon": "mdi:thermometer-alert",
-                    "tap_action": {
-                        "action": "call-service",
-                        "service": "newbook.force_room_temperature",
-                        "data": {
-                            "room_id": room_id,
-                        },
-                    },
-                },
-                {
-                    "type": "button",
-                    "name": "Sync All Valves (Uses Above)",
+                    "name": "Sync All Valves to Target",
                     "icon": "mdi:sync",
                     "tap_action": {
                         "action": "call-service",
