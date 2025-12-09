@@ -19,6 +19,7 @@ from .const import (
     SHELLY_ONLINE_TOPIC,
     SHELLY_STATUS_TOPIC,
     SIGNAL_TRV_DISCOVERED,
+    SIGNAL_TRV_SETTINGS_UPDATED,
     SIGNAL_TRV_STATUS_UPDATED,
 )
 from .shelly_detector import ShellyDetector, ShellyDevice
@@ -99,10 +100,72 @@ class MQTTDiscoveryManager:
             # Check if device name matches room pattern
             await self._async_process_device(device)
 
+            # Extract TRV device settings and store in TRV health
+            await self._async_update_trv_settings(device, payload)
+
         except json.JSONDecodeError as err:
             _LOGGER.error("Failed to decode settings message: %s", err)
         except Exception as err:
             _LOGGER.error("Error processing settings message: %s", err)
+
+    async def _async_update_trv_settings(
+        self,
+        device: ShellyDevice,
+        payload: dict[str, Any]
+    ) -> None:
+        """Update TRV health with device settings from MQTT settings message."""
+        # Only process for mapped devices
+        mapping = self._mapped_devices.get(device.device_id)
+        if not mapping:
+            return
+
+        site_id = mapping["site_id"]
+        location = mapping["location"]
+        entity_id = f"climate.room_{site_id}_{location}"
+
+        # Get TRV monitor and health object
+        trv_monitor = self.hass.data.get(DOMAIN, {}).get(self.entry_id, {}).get("trv_monitor")
+        if not trv_monitor:
+            return
+
+        health = trv_monitor.get_trv_health(entity_id)
+
+        # Extract settings from payload
+        display_brightness = payload.get("display_brightness")
+        display_flipped = payload.get("display_flipped")
+
+        # Clog prevention is in ext_power_flags bitmask (bit 0)
+        ext_power_flags = payload.get("ext_power_flags", 0)
+        clog_prevention = bool(ext_power_flags & 1) if ext_power_flags is not None else None
+
+        # Also get device IP from wifi_sta
+        wifi_sta = payload.get("wifi_sta", {})
+        device_ip = wifi_sta.get("ip")
+        if device_ip:
+            health.set_device_ip(device_ip)
+
+        # Update settings
+        health.update_device_settings(
+            display_brightness=display_brightness,
+            display_flipped=display_flipped,
+            clog_prevention=clog_prevention,
+        )
+
+        _LOGGER.debug(
+            "Updated %s settings: brightness=%s, flipped=%s, clog_prevention=%s, ip=%s",
+            entity_id,
+            display_brightness,
+            display_flipped,
+            clog_prevention,
+            device_ip,
+        )
+
+        # Notify entities that settings have been updated
+        async_dispatcher_send(
+            self.hass,
+            f"{SIGNAL_TRV_SETTINGS_UPDATED}_{self.entry_id}",
+            entity_id,
+        )
 
     def _get_room_site_name(self, site_id: str) -> str | None:
         """Get the Newbook room's site_name for area matching."""

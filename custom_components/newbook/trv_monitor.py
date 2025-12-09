@@ -75,6 +75,11 @@ class TRVHealth:
         self.is_calibrated: bool = True
         self.device_ip: str | None = None  # For HTTP wake-up
 
+        # TRV device settings (from MQTT settings topic)
+        self.display_brightness: int | None = None  # 1=Low, 4=Normal, 7=High
+        self.display_flipped: bool | None = None  # Screen rotation
+        self.clog_prevention: bool | None = None  # Anti-clog feature
+
         # Timestamped response history for 72h tracking
         # Each entry: (timestamp, response_time_seconds, success)
         self.response_history: list[tuple[datetime, float, bool]] = []
@@ -177,6 +182,21 @@ class TRVHealth:
     def set_device_ip(self, ip: str) -> None:
         """Set device IP for HTTP wake-up."""
         self.device_ip = ip
+
+    def update_device_settings(
+        self,
+        display_brightness: int | None = None,
+        display_flipped: bool | None = None,
+        clog_prevention: bool | None = None,
+    ) -> None:
+        """Update TRV device settings from MQTT settings topic."""
+        if display_brightness is not None:
+            self.display_brightness = display_brightness
+        if display_flipped is not None:
+            self.display_flipped = display_flipped
+        if clog_prevention is not None:
+            self.clog_prevention = clog_prevention
+        self.last_seen = datetime.now()
 
     def record_ha_command(self, target_temp: float) -> None:
         """Record when HA sends a command."""
