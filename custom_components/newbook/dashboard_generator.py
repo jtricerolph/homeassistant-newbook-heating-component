@@ -435,12 +435,12 @@ class DashboardGenerator:
                 battery_entities.append(state.entity_id)
 
         if battery_entities:
-            # Critical battery card
+            # Critical battery card (< 20%)
             critical_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
                     "type": "entities",
-                    "title": "❌ Critical Batteries",
+                    "title": "❌ Critical Batteries (< 20%)",
                 },
                 "filter": {
                     "include": [
@@ -448,21 +448,26 @@ class DashboardGenerator:
                             "entity_id": "*_trv_battery",
                             "state": "< 20",
                             "options": {
+                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                                 "secondary_info": "last-changed",
                             },
                         }
                     ],
                 },
                 "show_empty": True,
+                "sort": {
+                    "method": "state",
+                    "numeric": True,
+                },
             }
             section_cards.append(critical_battery_card)
 
-            # Low battery warning card
+            # Low battery warning card (20% to 50%)
             low_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
                     "type": "entities",
-                    "title": "⚠️ Low Battery Warnings",
+                    "title": "⚠️ Low Battery (20-50%)",
                 },
                 "filter": {
                     "include": [
@@ -470,38 +475,57 @@ class DashboardGenerator:
                             "entity_id": "*_trv_battery",
                             "state": "< 50",
                             "options": {
+                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                                 "secondary_info": "last-changed",
                             },
                         }
                     ],
+                    "exclude": [
+                        {
+                            "entity_id": "*_trv_battery",
+                            "state": "< 20",
+                        }
+                    ],
                 },
                 "show_empty": True,
+                "sort": {
+                    "method": "state",
+                    "numeric": True,
+                },
             }
             section_cards.append(low_battery_card)
 
-            # All batteries card
-            all_batteries_card = {
+            # Good batteries card (>= 50%)
+            good_batteries_card = {
                 "type": "custom:auto-entities",
                 "card": {
                     "type": "entities",
-                    "title": "📊 All TRV Batteries",
+                    "title": "✅ Good Batteries (≥ 50%)",
                 },
                 "filter": {
                     "include": [
                         {
                             "entity_id": "*_trv_battery",
                             "options": {
+                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                                 "secondary_info": "last-changed",
                             },
+                        }
+                    ],
+                    "exclude": [
+                        {
+                            "entity_id": "*_trv_battery",
+                            "state": "< 50",
                         }
                     ],
                 },
                 "sort": {
                     "method": "state",
                     "numeric": True,
+                    "reverse": True,
                 },
             }
-            section_cards.append(all_batteries_card)
+            section_cards.append(good_batteries_card)
 
         else:
             section_cards.append({
@@ -1132,58 +1156,12 @@ Check signal strength in Shelly web interface → Device Info
                 battery_entities.append(state.entity_id)
 
         if battery_entities:
-            # All batteries card
-            all_batteries_card = {
-                "type": "custom:auto-entities",
-                "card": {
-                    "type": "entities",
-                    "title": "📊 All TRV Batteries",
-                },
-                "filter": {
-                    "include": [
-                        {
-                            "entity_id": "*_trv_battery",
-                            "options": {
-                                "secondary_info": "last-changed",
-                            },
-                        }
-                    ],
-                },
-                "sort": {
-                    "method": "state",
-                    "numeric": True,
-                },
-            }
-            section_cards.append(all_batteries_card)
-
-            # Low battery warning card
-            low_battery_card = {
-                "type": "custom:auto-entities",
-                "card": {
-                    "type": "entities",
-                    "title": "⚠️ Low Battery Warnings",
-                },
-                "filter": {
-                    "include": [
-                        {
-                            "entity_id": "*_trv_battery",
-                            "state": "< 50",
-                            "options": {
-                                "secondary_info": "last-changed",
-                            },
-                        }
-                    ],
-                },
-                "show_empty": True,
-            }
-            section_cards.append(low_battery_card)
-
-            # Critical battery card
+            # Critical battery card (< 20%)
             critical_battery_card = {
                 "type": "custom:auto-entities",
                 "card": {
                     "type": "entities",
-                    "title": "❌ Critical Batteries",
+                    "title": "❌ Critical Batteries (< 20%)",
                 },
                 "filter": {
                     "include": [
@@ -1191,14 +1169,84 @@ Check signal strength in Shelly web interface → Device Info
                             "entity_id": "*_trv_battery",
                             "state": "< 20",
                             "options": {
+                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                                 "secondary_info": "last-changed",
                             },
                         }
                     ],
                 },
                 "show_empty": True,
+                "sort": {
+                    "method": "state",
+                    "numeric": True,
+                },
             }
             section_cards.append(critical_battery_card)
+
+            # Low battery warning card (20% to 50%)
+            low_battery_card = {
+                "type": "custom:auto-entities",
+                "card": {
+                    "type": "entities",
+                    "title": "⚠️ Low Battery (20-50%)",
+                },
+                "filter": {
+                    "include": [
+                        {
+                            "entity_id": "*_trv_battery",
+                            "state": "< 50",
+                            "options": {
+                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                                "secondary_info": "last-changed",
+                            },
+                        }
+                    ],
+                    "exclude": [
+                        {
+                            "entity_id": "*_trv_battery",
+                            "state": "< 20",
+                        }
+                    ],
+                },
+                "show_empty": True,
+                "sort": {
+                    "method": "state",
+                    "numeric": True,
+                },
+            }
+            section_cards.append(low_battery_card)
+
+            # Good batteries card (>= 50%)
+            good_batteries_card = {
+                "type": "custom:auto-entities",
+                "card": {
+                    "type": "entities",
+                    "title": "✅ Good Batteries (≥ 50%)",
+                },
+                "filter": {
+                    "include": [
+                        {
+                            "entity_id": "*_trv_battery",
+                            "options": {
+                                "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                                "secondary_info": "last-changed",
+                            },
+                        }
+                    ],
+                    "exclude": [
+                        {
+                            "entity_id": "*_trv_battery",
+                            "state": "< 50",
+                        }
+                    ],
+                },
+                "sort": {
+                    "method": "state",
+                    "numeric": True,
+                    "reverse": True,
+                },
+            }
+            section_cards.append(good_batteries_card)
 
         else:
             cards.append({
