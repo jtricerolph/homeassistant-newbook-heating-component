@@ -426,6 +426,17 @@ class HeatingController:
             )
             return
 
+        # Check if source is a bathroom TRV and exclude_bathroom is enabled
+        # If so, bathroom changes should NOT sync to other TRVs
+        exclude_bathroom = self.get_exclude_bathroom(room_id)
+        if exclude_bathroom and "bathroom" in entity_id.lower():
+            _LOGGER.debug(
+                "Room %s: Ignoring bathroom TRV %s change (exclude_bathroom_from_sync enabled)",
+                room_id,
+                entity_id,
+            )
+            return
+
         # Get all TRVs in the room
         all_trvs = self.trv_monitor.get_room_trvs(room_id)
         if len(all_trvs) <= 1:
@@ -436,7 +447,7 @@ class HeatingController:
             return
 
         # Determine which TRVs to sync to (exclude the source TRV)
-        exclude_bathroom = self.get_exclude_bathroom(room_id)
+        # Note: exclude_bathroom already fetched above when checking source TRV
         target_trvs = []
 
         for trv in all_trvs:
