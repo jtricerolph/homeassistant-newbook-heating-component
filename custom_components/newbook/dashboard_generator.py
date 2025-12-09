@@ -332,6 +332,7 @@ class DashboardGenerator:
 
         # TRV devices card - uses auto-entities to dynamically discover TRVs
         # New TRVs will automatically appear when connected to MQTT
+        # Name template extracts just the location (e.g., "Bedroom" from "room_101_bedroom_trv")
         trvs_card = {
             "type": "custom:auto-entities",
             "card": {
@@ -345,6 +346,7 @@ class DashboardGenerator:
                         "entity_id": f"climate.room_{site_name}_*",
                         "options": {
                             "type": "thermostat",
+                            "name": "{{ config.entity.split('.')[1] | replace('room_" + site_name + "_', '') | regex_replace('_trv$', '') | replace('_', ' ') | title }}",
                         },
                     }
                 ],
@@ -357,6 +359,7 @@ class DashboardGenerator:
         section_cards.append(trvs_card)
 
         # TRV battery sensors - auto-discovers batteries for this room's TRVs
+        # Name template extracts just the location (e.g., "Bedroom")
         battery_card = {
             "type": "custom:auto-entities",
             "card": {
@@ -368,7 +371,7 @@ class DashboardGenerator:
                     {
                         "entity_id": f"sensor.room_{site_name}_*_trv_battery",
                         "options": {
-                            "name": "{{ config.entity.split('.')[1] | replace('room_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
+                            "name": "{{ config.entity.split('.')[1] | replace('room_" + site_name + "_', '') | regex_replace('_trv.*$', '') | replace('_', ' ') | title }}",
                         },
                     }
                 ],
