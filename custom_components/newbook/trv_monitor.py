@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
+import aiohttp
+
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN, SERVICE_SET_TEMPERATURE
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant, callback
@@ -23,6 +25,7 @@ from .const import (
     EVENT_TRV_UNRESPONSIVE,
     GUEST_SOURCES,
     RETRY_DELAYS,
+    TRV_HEALTH_CALIBRATION_ERROR,
     TRV_HEALTH_DEGRADED,
     TRV_HEALTH_HEALTHY,
     TRV_HEALTH_POOR,
@@ -67,9 +70,33 @@ class TRVHealth:
         self.failed_commands: int = 0
         self.battery_level: int | None = None
 
+        # Valve and calibration tracking
+        self.valve_position: int | None = None
+        self.is_calibrated: bool = True
+        self.device_ip: str | None = None  # For HTTP wake-up
+
+        # Timestamped response history for 72h tracking
+        # Each entry: (timestamp, response_time_seconds, success)
+        self.response_history: list[tuple[datetime, float, bool]] = []
+
+        # Track HA commands for origin detection
+        self.ha_last_command_temp: float | None = None
+        self.ha_last_command_time: datetime | None = None
+        self.current_target_temp: float | None = None
+        self.status_update_time: datetime | None = None
+
     @property
     def health_state(self) -> str:
         """Determine current health state."""
+        # Check for calibration error FIRST
+        # Device is reporting (last_seen recent) but valve position = -1% or not calibrated
+        if self.last_seen:
+            age = datetime.now() - self.last_seen
+            if age < timedelta(minutes=30):
+                # Device is alive - check calibration
+                if self.valve_position == -1 or not self.is_calibrated:
+                    return TRV_HEALTH_CALIBRATION_ERROR
+
         # If never commanded, assume healthy (not yet tested)
         if not self.last_command_sent:
             return TRV_HEALTH_HEALTHY
@@ -141,6 +168,79 @@ class TRVHealth:
         self.battery_level = level
         self.last_seen = datetime.now()
 
+    def update_valve_status(self, position: int, calibrated: bool) -> None:
+        """Update valve position and calibration status."""
+        self.valve_position = position
+        self.is_calibrated = calibrated
+        self.last_seen = datetime.now()
+
+    def set_device_ip(self, ip: str) -> None:
+        """Set device IP for HTTP wake-up."""
+        self.device_ip = ip
+
+    def record_ha_command(self, target_temp: float) -> None:
+        """Record when HA sends a command."""
+        self.ha_last_command_temp = target_temp
+        self.ha_last_command_time = datetime.now()
+
+    def update_from_status(self, target_temp: float) -> None:
+        """Update from device status message."""
+        self.current_target_temp = target_temp
+        self.status_update_time = datetime.now()
+        self.last_seen = datetime.now()
+
+    @property
+    def target_temp_origin(self) -> str:
+        """Determine if current target was set by HA or guest."""
+        if self.current_target_temp is None:
+            return "unknown"
+        if self.ha_last_command_temp is None:
+            return "guest"  # No HA command ever sent
+        if abs(self.current_target_temp - self.ha_last_command_temp) < 0.1:
+            return "automation"
+        return "guest"  # Target differs from what HA commanded
+
+    def record_response(self, response_time: float, success: bool) -> None:
+        """Record a command response with timestamp for 72h tracking."""
+        self.response_history.append((datetime.now(), response_time, success))
+        self._cleanup_old_responses()
+
+    def _cleanup_old_responses(self) -> None:
+        """Remove responses older than 72 hours."""
+        cutoff = datetime.now() - timedelta(hours=72)
+        self.response_history = [
+            (ts, rt, s) for ts, rt, s in self.response_history if ts > cutoff
+        ]
+
+    def get_response_stats_72h(self) -> dict[str, Any]:
+        """Get response statistics for last 72 hours."""
+        self._cleanup_old_responses()
+
+        if not self.response_history:
+            return {
+                "response_times_72h": [],
+                "avg_response_time": None,
+                "min_response_time": None,
+                "max_response_time": None,
+                "total_commands_72h": 0,
+                "failed_commands_72h": 0,
+                "success_rate": None,
+            }
+
+        times = [rt for _, rt, success in self.response_history if success]
+        total = len(self.response_history)
+        failed = sum(1 for _, _, success in self.response_history if not success)
+
+        return {
+            "response_times_72h": times,
+            "avg_response_time": sum(times) / len(times) if times else None,
+            "min_response_time": min(times) if times else None,
+            "max_response_time": max(times) if times else None,
+            "total_commands_72h": total,
+            "failed_commands_72h": failed,
+            "success_rate": ((total - failed) / total * 100) if total > 0 else None,
+        }
+
 
 class TRVMonitor:
     """Monitor TRV health and handle command retries."""
@@ -179,6 +279,9 @@ class TRVMonitor:
         """
         health = self.get_trv_health(entity_id)
         retry_delays = RETRY_DELAYS[: self._max_retry_attempts]
+
+        # Record that HA is sending this command (for origin detection)
+        health.record_ha_command(target_temp)
 
         _LOGGER.info(
             "Setting %s to %.1f°C (max %d attempts)",
@@ -222,6 +325,8 @@ class TRVMonitor:
             if acknowledged:
                 response_time = (datetime.now() - command.sent_at).total_seconds()
                 health.record_command_ack(response_time)
+                # Also record in 72h history
+                health.record_response(response_time, success=True)
                 _LOGGER.info(
                     "%s acknowledged temp change to %.1f°C (attempt %d, %.1fs)",
                     entity_id,
@@ -256,12 +361,53 @@ class TRVMonitor:
             if attempt < len(retry_delays):
                 await asyncio.sleep(retry_delays[attempt - 1])
 
-        # All retries failed
+        # All retries exhausted - try HTTP wake-up before declaring unresponsive
+        _LOGGER.info("Trying HTTP wake-up for %s before marking unresponsive", entity_id)
+        woke_up = await self._try_http_wake_up(entity_id)
+        if woke_up:
+            # Device responded to HTTP, give it one more MQTT chance
+            _LOGGER.info("Device %s responded to HTTP wake-up, retrying MQTT", entity_id)
+
+            # One final MQTT attempt
+            try:
+                await self.hass.services.async_call(
+                    CLIMATE_DOMAIN,
+                    SERVICE_SET_TEMPERATURE,
+                    {
+                        ATTR_ENTITY_ID: entity_id,
+                        ATTR_TEMPERATURE: target_temp,
+                    },
+                    blocking=False,
+                )
+            except Exception as err:
+                _LOGGER.error("Failed to send post-wakeup command to %s: %s", entity_id, err)
+
+            # Wait for response
+            await asyncio.sleep(30)
+
+            # Check if it worked
+            state = self.hass.states.get(entity_id)
+            if state and abs(state.attributes.get(ATTR_TEMPERATURE, 0) - target_temp) < 0.1:
+                response_time = 30.0  # Approximate
+                health.record_command_ack(response_time)
+                health.record_response(response_time, success=True)
+                _LOGGER.info(
+                    "%s acknowledged temp change after HTTP wake-up (%.1fs)",
+                    entity_id,
+                    response_time,
+                )
+                return True
+
+        # Still failed - now mark unresponsive
         health.record_command_failed()
+        # Record in 72h history as failed (use total time as response time)
+        total_time = sum(retry_delays) + 30 if woke_up else sum(retry_delays)
+        health.record_response(total_time, success=False)
         _LOGGER.error(
-            "%s failed to acknowledge temp change after %d attempts",
+            "%s failed to acknowledge temp change after %d attempts%s",
             entity_id,
             len(retry_delays),
+            " + HTTP wake-up" if woke_up else "",
         )
 
         # Fire unresponsive event
@@ -271,6 +417,7 @@ class TRVMonitor:
                 "entity_id": entity_id,
                 "target_temp": target_temp,
                 "attempts": len(retry_delays),
+                "http_wakeup_attempted": woke_up,
             },
         )
 
@@ -303,6 +450,43 @@ class TRVMonitor:
                     return True
 
             await asyncio.sleep(check_interval)
+
+        return False
+
+    async def _try_http_wake_up(self, entity_id: str) -> bool:
+        """Try to wake up device via HTTP GET to /status.
+
+        Shelly devices in deep sleep sometimes respond to HTTP even when
+        not responding to MQTT. This can help 'wake' them up.
+
+        Returns True if device responded, False otherwise.
+        """
+        health = self.get_trv_health(entity_id)
+        if not health.device_ip:
+            _LOGGER.debug("No device IP for %s, cannot try HTTP wake-up", entity_id)
+            return False
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"http://{health.device_ip}/status"
+                _LOGGER.info("Attempting HTTP wake-up for %s at %s", entity_id, url)
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        _LOGGER.info("HTTP wake-up successful for %s", entity_id)
+
+                        # Update health from HTTP response
+                        if "thermostats" in data:
+                            pos = data.get("thermostats", [{}])[0].get("pos", 0)
+                            health.valve_position = pos
+                        health.last_seen = datetime.now()
+                        return True
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            _LOGGER.debug("HTTP wake-up failed for %s: %s", entity_id, err)
+        except Exception as err:
+            _LOGGER.warning("Unexpected error during HTTP wake-up for %s: %s", entity_id, err)
 
         return False
 
@@ -544,12 +728,16 @@ class TRVMonitor:
             "degraded": 0,
             "poor": 0,
             "unresponsive": 0,
+            "calibration_error": 0,
             "details": [],
         }
 
         for entity_id, health in self._health.items():
             state = health.health_state
             summary[state] += 1
+
+            # Get 72h response stats
+            response_stats = health.get_response_stats_72h()
 
             summary["details"].append(
                 {
@@ -560,6 +748,10 @@ class TRVMonitor:
                     "retry_count_24h": health.retry_count_24h,
                     "avg_response_time": health.avg_response_time,
                     "battery_level": health.battery_level,
+                    "valve_position": health.valve_position,
+                    "is_calibrated": health.is_calibrated,
+                    "device_ip": health.device_ip,
+                    "response_stats_72h": response_stats,
                 }
             )
 

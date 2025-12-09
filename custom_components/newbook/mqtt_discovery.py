@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import json
 import logging
 from typing import Any
@@ -298,7 +299,7 @@ class MQTTDiscoveryManager:
         )
 
         # Subscribe to status for health monitoring
-        await self._async_subscribe_device_status(device)
+        await self._async_subscribe_device_status(device, mapping)
 
         # Publish diagnostic sensors
         await self._async_publish_diagnostic_sensors(device, mapping)
@@ -350,6 +351,23 @@ class MQTTDiscoveryManager:
             "entity_category": "diagnostic",
             "json_attributes_topic": f"shellies/{device.device_id}/info",
             "json_attributes_template": '{{ {"ssid": value_json.wifi_sta.ssid, "ip": value_json.wifi_sta.ip} | tojson }}',
+            "device": {
+                "identifiers": [f"shelly_{device.mac}"],
+            },
+        }
+
+        # WiFi Health sensor (derived from RSSI: good >= -70, fair >= -80, poor < -80)
+        wifi_health_discovery_topic = f"{MQTT_DISCOVERY_PREFIX}/sensor/{device.device_id}_wifi_health/config"
+        wifi_health_config = {
+            "unique_id": f"shelly_{device.mac}_wifi_health",
+            "name": f"Room {site_id} {location.capitalize()} TRV WiFi Health",
+            "default_entity_id": f"sensor.{entity_id_base}_trv_wifi_health",
+            "stat_t": f"shellies/{device.device_id}/info",
+            "value_template": "{% set rssi = value_json.wifi_sta.rssi | int(-100) %}{% if rssi >= -70 %}good{% elif rssi >= -80 %}fair{% else %}poor{% endif %}",
+            "icon": "mdi:wifi",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": f"shellies/{device.device_id}/info",
+            "json_attributes_template": '{{ {"rssi": value_json.wifi_sta.rssi, "ssid": value_json.wifi_sta.ssid} | tojson }}',
             "device": {
                 "identifiers": [f"shelly_{device.mac}"],
             },
@@ -429,6 +447,14 @@ class MQTTDiscoveryManager:
 
         await mqtt.async_publish(
             self.hass,
+            wifi_health_discovery_topic,
+            json.dumps(wifi_health_config),
+            qos=1,
+            retain=True,
+        )
+
+        await mqtt.async_publish(
+            self.hass,
             calibration_discovery_topic,
             json.dumps(calibration_config),
             qos=1,
@@ -452,7 +478,7 @@ class MQTTDiscoveryManager:
         )
 
         # Subscribe to info topic for diagnostic data
-        await self._async_subscribe_device_info(device)
+        await self._async_subscribe_device_info(device, mapping)
 
     async def _async_assign_device_to_area(self, mac: str, area_name: str) -> None:
         """Assign a device to an area using device and area registries."""
@@ -495,17 +521,29 @@ class MQTTDiscoveryManager:
         else:
             _LOGGER.debug("Device %s already in area %s", device_entry.name, area_name)
 
-    async def _async_subscribe_device_status(self, device: ShellyDevice) -> None:
+    async def _async_subscribe_device_status(self, device: ShellyDevice, mapping: dict) -> None:
         """Subscribe to device status for health monitoring."""
         status_topic = f"shellies/{device.device_id}/status"
+        site_id = mapping["site_id"]
+        location = mapping["location"]
 
         @callback
         async def status_received(msg: mqtt.ReceiveMessage) -> None:
             """Handle device status update."""
             try:
                 payload = json.loads(msg.payload)
-                # TODO: Feed into TRV monitor health tracking
                 _LOGGER.debug("Device %s status: %s", device.device_id, payload)
+
+                # Feed target temperature into TRV monitor for origin detection
+                target_temp = payload.get("target_t", {}).get("value")
+                if target_temp is not None:
+                    trv_monitor = self.hass.data.get(DOMAIN, {}).get(self.entry_id, {}).get("trv_monitor")
+                    if trv_monitor:
+                        entity_id = f"climate.room_{site_id}_{location}"
+                        health = trv_monitor.get_trv_health(entity_id)
+                        health.update_from_status(float(target_temp))
+                        _LOGGER.debug("Updated %s target temp from status: %.1f", entity_id, target_temp)
+
             except Exception as err:
                 _LOGGER.error("Error processing status for %s: %s", device.device_id, err)
 
@@ -516,9 +554,11 @@ class MQTTDiscoveryManager:
             qos=1,
         )
 
-    async def _async_subscribe_device_info(self, device: ShellyDevice) -> None:
+    async def _async_subscribe_device_info(self, device: ShellyDevice, mapping: dict) -> None:
         """Subscribe to device info for diagnostic data."""
         info_topic = f"shellies/{device.device_id}/info"
+        site_id = mapping["site_id"]
+        location = mapping["location"]
 
         @callback
         async def info_received(msg: mqtt.ReceiveMessage) -> None:
@@ -529,6 +569,37 @@ class MQTTDiscoveryManager:
                              device.device_id,
                              payload.get("bat", {}).get("value"),
                              payload.get("wifi_sta", {}).get("rssi"))
+
+                # Feed valve position and calibration status into TRV health tracking
+                trv_monitor = self.hass.data.get(DOMAIN, {}).get(self.entry_id, {}).get("trv_monitor")
+                if trv_monitor:
+                    entity_id = f"climate.room_{site_id}_{location}"
+                    health = trv_monitor.get_trv_health(entity_id)
+
+                    # Update valve position
+                    thermostats = payload.get("thermostats", [{}])
+                    if thermostats:
+                        valve_pos = thermostats[0].get("pos", 0)
+                        health.valve_position = valve_pos
+
+                    # Update calibration status
+                    calibrated = payload.get("calibrated", True)
+                    health.is_calibrated = calibrated
+
+                    # Update device IP for HTTP wake-up
+                    wifi_sta = payload.get("wifi_sta", {})
+                    device_ip = wifi_sta.get("ip")
+                    if device_ip:
+                        health.set_device_ip(device_ip)
+
+                    # Update last_seen
+                    health.last_seen = datetime.now()
+
+                    _LOGGER.debug(
+                        "Updated %s health: valve_pos=%s%%, calibrated=%s, ip=%s",
+                        entity_id, valve_pos, calibrated, device_ip
+                    )
+
             except Exception as err:
                 _LOGGER.error("Error processing info for %s: %s", device.device_id, err)
 

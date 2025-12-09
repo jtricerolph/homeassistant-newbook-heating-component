@@ -83,6 +83,16 @@ TRV_HEALTH_HEALTHY: Final = "healthy"
 TRV_HEALTH_DEGRADED: Final = "degraded"
 TRV_HEALTH_POOR: Final = "poor"
 TRV_HEALTH_UNRESPONSIVE: Final = "unresponsive"
+TRV_HEALTH_CALIBRATION_ERROR: Final = "calibration_error"
+
+# WiFi Health States
+WIFI_HEALTH_GOOD: Final = "good"
+WIFI_HEALTH_FAIR: Final = "fair"
+WIFI_HEALTH_POOR: Final = "poor"
+
+# WiFi RSSI Thresholds
+WIFI_RSSI_GOOD_THRESHOLD: Final = -70  # >= -70 dBm
+WIFI_RSSI_FAIR_THRESHOLD: Final = -80  # >= -80 dBm, < -70 dBm
 
 # MQTT Topics
 MQTT_TOPIC_PATTERN: Final = "shellies/room-{room_id}-{location}-trv/#"

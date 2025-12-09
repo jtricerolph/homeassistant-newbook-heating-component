@@ -46,6 +46,7 @@ async def async_setup_entry(
         NewbookTRVHealthDegradedSensor(hass, entry.entry_id),
         NewbookTRVHealthPoorSensor(hass, entry.entry_id),
         NewbookTRVHealthUnresponsiveSensor(hass, entry.entry_id),
+        NewbookTRVHealthCalibrationErrorSensor(hass, entry.entry_id),
     ]
     async_add_entities(system_entities)
 
@@ -725,3 +726,20 @@ class NewbookTRVHealthUnresponsiveSensor(NewbookTRVHealthSensorBase):
     def native_value(self) -> int:
         """Return the number of unresponsive TRVs."""
         return self._get_health_summary().get("unresponsive", 0)
+
+
+class NewbookTRVHealthCalibrationErrorSensor(NewbookTRVHealthSensorBase):
+    """Sensor for number of TRVs with calibration errors."""
+
+    _attr_icon = "mdi:wrench-clock"
+
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(hass, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_trv_health_calibration_error"
+        self._attr_name = "Newbook TRV Health Calibration Error"
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of TRVs with calibration errors."""
+        return self._get_health_summary().get("calibration_error", 0)

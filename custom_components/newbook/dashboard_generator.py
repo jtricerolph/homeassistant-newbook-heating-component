@@ -553,6 +553,7 @@ class DashboardGenerator:
 - **Degraded**: Slow but working (3-4 attempts)
 - **Poor**: Unreliable (5-9 attempts)
 - **Unresponsive**: Not responding (10+ attempts)
+- **Calibration Error**: Device reporting but not calibrated (valve pos = -1%)
 """,
         })
 
@@ -565,6 +566,7 @@ class DashboardGenerator:
                 "sensor.newbook_trv_health_degraded",
                 "sensor.newbook_trv_health_poor",
                 "sensor.newbook_trv_health_unresponsive",
+                "sensor.newbook_trv_health_calibration_error",
             ],
         }
         section_cards.append(summary_card)
@@ -590,18 +592,40 @@ class DashboardGenerator:
         }
         section_cards.append(all_trvs_card)
 
-        # Poor WiFi signal card (< -80 dBm)
+        # Calibration Error card - TRVs needing calibration
+        calibration_error_card = {
+            "type": "custom:auto-entities",
+            "card": {
+                "type": "entities",
+                "title": "🔧 Calibration Required",
+            },
+            "filter": {
+                "include": [
+                    {
+                        "entity_id": "binary_sensor.room_*_trv_calibration",
+                        "state": "on",
+                        "options": {
+                            "secondary_info": "last-changed",
+                        },
+                    }
+                ],
+            },
+            "show_empty": True,
+        }
+        section_cards.append(calibration_error_card)
+
+        # Poor WiFi Health card (uses wifi_health sensor with state "poor")
         poor_wifi_card = {
             "type": "custom:auto-entities",
             "card": {
                 "type": "entities",
-                "title": "❌ Poor WiFi Signal (< -80 dBm)",
+                "title": "❌ Poor WiFi (< -80 dBm)",
             },
             "filter": {
                 "include": [
                     {
-                        "entity_id": "sensor.room_*_trv_wifi_signal",
-                        "state": "< -80",
+                        "entity_id": "sensor.room_*_trv_wifi_health",
+                        "state": "poor",
                         "options": {
                             "secondary_info": "last-changed",
                         },
@@ -609,46 +633,32 @@ class DashboardGenerator:
                 ],
             },
             "show_empty": True,
-            "sort": {
-                "method": "state",
-                "numeric": True,
-            },
         }
         section_cards.append(poor_wifi_card)
 
-        # Fair WiFi signal card (-70 to -80 dBm)
+        # Fair WiFi Health card (uses wifi_health sensor with state "fair")
         fair_wifi_card = {
             "type": "custom:auto-entities",
             "card": {
                 "type": "entities",
-                "title": "⚠️ Fair WiFi Signal (-70 to -80 dBm)",
+                "title": "⚠️ Fair WiFi (-70 to -80 dBm)",
             },
             "filter": {
                 "include": [
                     {
-                        "entity_id": "sensor.room_*_trv_wifi_signal",
-                        "state": "< -70",
+                        "entity_id": "sensor.room_*_trv_wifi_health",
+                        "state": "fair",
                         "options": {
                             "secondary_info": "last-changed",
                         },
                     }
                 ],
-                "exclude": [
-                    {
-                        "entity_id": "sensor.room_*_trv_wifi_signal",
-                        "state": "< -80",
-                    }
-                ],
             },
             "show_empty": True,
-            "sort": {
-                "method": "state",
-                "numeric": True,
-            },
         }
         section_cards.append(fair_wifi_card)
 
-        # All WiFi signals card
+        # All WiFi signals card (shows actual RSSI values)
         wifi_card = {
             "type": "custom:auto-entities",
             "card": {
