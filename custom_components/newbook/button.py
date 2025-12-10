@@ -121,10 +121,10 @@ class TRVCalibrateButton(ButtonEntity):
             _LOGGER.error("No device IP available for %s", self._climate_entity_id)
             return
 
+        url = f"http://{health.device_ip}/calibrate"
         try:
+            _LOGGER.info("Starting calibration for %s (url=%s)", self._climate_entity_id, url)
             async with aiohttp.ClientSession() as session:
-                url = f"http://{health.device_ip}/calibrate"
-                _LOGGER.info("Starting calibration for %s", self._climate_entity_id)
                 async with session.get(
                     url, timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -138,5 +138,7 @@ class TRVCalibrateButton(ButtonEntity):
                             self._climate_entity_id,
                             response.status,
                         )
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.error("Failed to start calibration for %s: %s", self._climate_entity_id, err)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Failed to start calibration for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Failed to start calibration for %s: %s (%s)", self._climate_entity_id, type(err).__name__, err)

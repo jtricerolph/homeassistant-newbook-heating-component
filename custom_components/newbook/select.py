@@ -145,10 +145,10 @@ class TRVBrightnessSelect(SelectEntity):
             _LOGGER.error("Invalid brightness option: %s", option)
             return
 
+        url = f"http://{health.device_ip}/settings/?display_brightness={brightness_value}"
         try:
+            _LOGGER.info("Setting %s brightness to %s (%d) (url=%s)", self._climate_entity_id, option, brightness_value, url)
             async with aiohttp.ClientSession() as session:
-                url = f"http://{health.device_ip}/settings/?display_brightness={brightness_value}"
-                _LOGGER.info("Setting %s brightness to %s (%d)", self._climate_entity_id, option, brightness_value)
                 async with session.get(
                     url, timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -163,8 +163,10 @@ class TRVBrightnessSelect(SelectEntity):
                             self._climate_entity_id,
                             response.status,
                         )
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.error("Failed to set brightness for %s: %s", self._climate_entity_id, err)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Failed to set brightness for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Failed to set brightness for %s: %s (%s)", self._climate_entity_id, type(err).__name__, err)
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks when entity is added."""

@@ -419,10 +419,10 @@ class TRVScreenRotationSwitch(TRVSettingsSwitchBase):
             return
 
         value = 1 if flipped else 0
+        url = f"http://{health.device_ip}/settings/?display_flipped={value}"
         try:
+            _LOGGER.info("Setting %s screen rotation to %s (url=%s)", self._climate_entity_id, flipped, url)
             async with aiohttp.ClientSession() as session:
-                url = f"http://{health.device_ip}/settings/?display_flipped={value}"
-                _LOGGER.info("Setting %s screen rotation to %s", self._climate_entity_id, flipped)
                 async with session.get(
                     url, timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -436,8 +436,10 @@ class TRVScreenRotationSwitch(TRVSettingsSwitchBase):
                             self._climate_entity_id,
                             response.status,
                         )
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.error("Failed to set screen rotation for %s: %s", self._climate_entity_id, err)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Failed to set screen rotation for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Failed to set screen rotation for %s: %s (%s)", self._climate_entity_id, type(err).__name__, err)
 
 
 class TRVClogPreventionSwitch(TRVSettingsSwitchBase):
@@ -486,10 +488,10 @@ class TRVClogPreventionSwitch(TRVSettingsSwitchBase):
             return
 
         value = 1 if enabled else 0
+        url = f"http://{health.device_ip}/settings/?clog_prevention={value}"
         try:
+            _LOGGER.info("Setting %s clog prevention to %s (url=%s)", self._climate_entity_id, enabled, url)
             async with aiohttp.ClientSession() as session:
-                url = f"http://{health.device_ip}/settings/?clog_prevention={value}"
-                _LOGGER.info("Setting %s clog prevention to %s", self._climate_entity_id, enabled)
                 async with session.get(
                     url, timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -503,5 +505,7 @@ class TRVClogPreventionSwitch(TRVSettingsSwitchBase):
                             self._climate_entity_id,
                             response.status,
                         )
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.error("Failed to set clog prevention for %s: %s", self._climate_entity_id, err)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Failed to set clog prevention for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Failed to set clog prevention for %s: %s (%s)", self._climate_entity_id, type(err).__name__, err)
