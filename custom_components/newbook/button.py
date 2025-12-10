@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -124,20 +125,20 @@ class TRVCalibrateButton(ButtonEntity):
         url = f"http://{health.device_ip}/calibrate"
         try:
             _LOGGER.info("Starting calibration for %s (url=%s)", self._climate_entity_id, url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        _LOGGER.info("Calibration started for %s", self._climate_entity_id)
-                        # Mark as not calibrated until process completes
-                        health.is_calibrated = False
-                    else:
-                        _LOGGER.error(
-                            "Failed to start calibration for %s: HTTP %d",
-                            self._climate_entity_id,
-                            response.status,
-                        )
+            session = async_get_clientsession(self.hass)
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    _LOGGER.info("Calibration started for %s", self._climate_entity_id)
+                    # Mark as not calibrated until process completes
+                    health.is_calibrated = False
+                else:
+                    _LOGGER.error(
+                        "Failed to start calibration for %s: HTTP %d",
+                        self._climate_entity_id,
+                        response.status,
+                    )
         except asyncio.TimeoutError:
             _LOGGER.error("Failed to start calibration for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
         except aiohttp.ClientError as err:

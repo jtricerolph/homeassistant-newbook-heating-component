@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -422,20 +423,20 @@ class TRVScreenRotationSwitch(TRVSettingsSwitchBase):
         url = f"http://{health.device_ip}/settings/?display_flipped={value}"
         try:
             _LOGGER.info("Setting %s screen rotation to %s (url=%s)", self._climate_entity_id, flipped, url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        _LOGGER.info("Successfully set screen rotation for %s", self._climate_entity_id)
-                        health.display_flipped = flipped
-                        self.async_write_ha_state()
-                    else:
-                        _LOGGER.error(
-                            "Failed to set screen rotation for %s: HTTP %d",
-                            self._climate_entity_id,
-                            response.status,
-                        )
+            session = async_get_clientsession(self.hass)
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    _LOGGER.info("Successfully set screen rotation for %s", self._climate_entity_id)
+                    health.display_flipped = flipped
+                    self.async_write_ha_state()
+                else:
+                    _LOGGER.error(
+                        "Failed to set screen rotation for %s: HTTP %d",
+                        self._climate_entity_id,
+                        response.status,
+                    )
         except asyncio.TimeoutError:
             _LOGGER.error("Failed to set screen rotation for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
         except aiohttp.ClientError as err:
@@ -491,20 +492,20 @@ class TRVClogPreventionSwitch(TRVSettingsSwitchBase):
         url = f"http://{health.device_ip}/settings/?clog_prevention={value}"
         try:
             _LOGGER.info("Setting %s clog prevention to %s (url=%s)", self._climate_entity_id, enabled, url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        _LOGGER.info("Successfully set clog prevention for %s", self._climate_entity_id)
-                        health.clog_prevention = enabled
-                        self.async_write_ha_state()
-                    else:
-                        _LOGGER.error(
-                            "Failed to set clog prevention for %s: HTTP %d",
-                            self._climate_entity_id,
-                            response.status,
-                        )
+            session = async_get_clientsession(self.hass)
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    _LOGGER.info("Successfully set clog prevention for %s", self._climate_entity_id)
+                    health.clog_prevention = enabled
+                    self.async_write_ha_state()
+                else:
+                    _LOGGER.error(
+                        "Failed to set clog prevention for %s: HTTP %d",
+                        self._climate_entity_id,
+                        response.status,
+                    )
         except asyncio.TimeoutError:
             _LOGGER.error("Failed to set clog prevention for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
         except aiohttp.ClientError as err:

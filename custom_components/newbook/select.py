@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 
 from homeassistant.components.select import SelectEntity
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -148,21 +149,21 @@ class TRVBrightnessSelect(SelectEntity):
         url = f"http://{health.device_ip}/settings/?display_brightness={brightness_value}"
         try:
             _LOGGER.info("Setting %s brightness to %s (%d) (url=%s)", self._climate_entity_id, option, brightness_value, url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        _LOGGER.info("Successfully set brightness for %s", self._climate_entity_id)
-                        # Update local state
-                        health.display_brightness = brightness_value
-                        self.async_write_ha_state()
-                    else:
-                        _LOGGER.error(
-                            "Failed to set brightness for %s: HTTP %d",
-                            self._climate_entity_id,
-                            response.status,
-                        )
+            session = async_get_clientsession(self.hass)
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    _LOGGER.info("Successfully set brightness for %s", self._climate_entity_id)
+                    # Update local state
+                    health.display_brightness = brightness_value
+                    self.async_write_ha_state()
+                else:
+                    _LOGGER.error(
+                        "Failed to set brightness for %s: HTTP %d",
+                        self._climate_entity_id,
+                        response.status,
+                    )
         except asyncio.TimeoutError:
             _LOGGER.error("Failed to set brightness for %s: Timeout connecting to %s", self._climate_entity_id, health.device_ip)
         except aiohttp.ClientError as err:
