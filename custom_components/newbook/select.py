@@ -115,7 +115,7 @@ class TRVBrightnessSelect(SelectEntity):
         self._device_id = device_id
 
         self._attr_unique_id = f"shelly_{mac}_brightness"
-        self._attr_name = "Screen Brightness"
+        self._attr_name = "Setting - Screen Brightness"
 
     @property
     def device_info(self) -> dict[str, Any]:

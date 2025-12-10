@@ -104,7 +104,7 @@ class TRVCalibrateButton(ButtonEntity):
         self._device_id = device_id
 
         self._attr_unique_id = f"shelly_{mac}_calibrate"
-        self._attr_name = "Calibrate"
+        self._attr_name = "Setting - Calibrate"
 
     @property
     def device_info(self) -> dict[str, Any]:

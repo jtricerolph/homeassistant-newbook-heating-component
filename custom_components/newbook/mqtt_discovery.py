@@ -139,9 +139,12 @@ class MQTTDiscoveryManager:
         display_brightness = payload.get("display_brightness")
         display_flipped = payload.get("display_flipped")
 
-        # Clog prevention is in ext_power_flags bitmask (bit 0)
-        ext_power_flags = payload.get("ext_power_flags", 0)
-        clog_prevention = bool(ext_power_flags & 1) if ext_power_flags is not None else None
+        # Clog prevention - check direct field first, then ext_power_flags bitmask (bit 0)
+        clog_prevention = payload.get("clog_prevention")
+        if clog_prevention is None:
+            ext_power_flags = payload.get("ext_power_flags")
+            if ext_power_flags is not None:
+                clog_prevention = bool(ext_power_flags & 1)
 
         # Also get device IP from wifi_sta
         wifi_sta = payload.get("wifi_sta", {})

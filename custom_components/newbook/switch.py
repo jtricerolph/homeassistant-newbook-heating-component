@@ -376,7 +376,7 @@ class TRVSettingsSwitchBase(SwitchEntity):
 class TRVScreenRotationSwitch(TRVSettingsSwitchBase):
     """Switch entity for TRV screen rotation (180°)."""
 
-    _attr_icon = "mdi:screen-rotation"
+    _attr_icon = "mdi:flip-vertical"
 
     def __init__(
         self,
@@ -395,7 +395,7 @@ class TRVScreenRotationSwitch(TRVSettingsSwitchBase):
             site_id, location, mac, device_id
         )
         self._attr_unique_id = f"shelly_{mac}_screen_rotation"
-        self._attr_name = "Screen Rotation"
+        self._attr_name = "Setting - Screen Rotation"
 
     @property
     def is_on(self) -> bool | None:
@@ -462,7 +462,7 @@ class TRVClogPreventionSwitch(TRVSettingsSwitchBase):
             site_id, location, mac, device_id
         )
         self._attr_unique_id = f"shelly_{mac}_clog_prevention"
-        self._attr_name = "Clog Prevention"
+        self._attr_name = "Setting - Clog Prevention"
 
     @property
     def is_on(self) -> bool | None:
