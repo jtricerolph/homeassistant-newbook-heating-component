@@ -837,3 +837,37 @@ class MQTTDiscoveryManager:
     def get_mapped_devices(self) -> dict[str, dict[str, Any]]:
         """Get dictionary of mapped devices."""
         return self._mapped_devices.copy()
+
+    async def async_fire_discovery_for_existing_devices(self) -> None:
+        """Fire discovery signals for all already-mapped devices.
+
+        This is called after platforms are set up to ensure entities
+        are created for devices that were discovered before platforms
+        subscribed to the discovery signal.
+        """
+        for device_id, mapping in self._mapped_devices.items():
+            device = self.detector.get_device(device_id)
+            if not device:
+                continue
+
+            site_id = mapping["site_id"]
+            location = mapping["location"]
+
+            _LOGGER.info(
+                "Re-firing discovery signal for existing device %s (room %s %s)",
+                device_id,
+                site_id,
+                location,
+            )
+
+            async_dispatcher_send(
+                self.hass,
+                f"{SIGNAL_TRV_DISCOVERED}_{self.entry_id}",
+                {
+                    "entity_id": f"climate.room_{site_id}_{location}",
+                    "site_id": site_id,
+                    "location": location,
+                    "mac": device.mac,
+                    "device_id": device_id,
+                },
+            )
