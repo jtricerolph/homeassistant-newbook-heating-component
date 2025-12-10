@@ -349,8 +349,9 @@ class TRVSettingsSwitchBase(SwitchEntity):
     @property
     def device_info(self) -> dict[str, Any]:
         """Return device information for grouping with TRV."""
+        # MQTT discovery creates devices with identifiers as ("mqtt", "shelly_{mac}")
         return {
-            "identifiers": {(f"shelly_{self._mac}",)},
+            "identifiers": {("mqtt", f"shelly_{self._mac}")},
         }
 
     async def async_added_to_hass(self) -> None:
