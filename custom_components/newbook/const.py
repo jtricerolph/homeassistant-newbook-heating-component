@@ -138,7 +138,4 @@ SERVICE_RETRY_UNRESPONSIVE_TRVS: Final = "retry_unresponsive_trvs"
 SERVICE_CREATE_DASHBOARDS: Final = "create_dashboards"
 
 # Platforms
-PLATFORMS: Final = ["sensor", "binary_sensor", "number", "switch", "select", "button"]
-
-# TRV Settings Dispatcher Signal
-SIGNAL_TRV_SETTINGS_UPDATED: Final = f"{DOMAIN}_trv_settings_updated"
+PLATFORMS: Final = ["sensor", "binary_sensor", "number", "switch"]
