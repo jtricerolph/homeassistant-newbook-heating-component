@@ -280,12 +280,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup MQTT discovery for Shelly devices
     await mqtt_discovery.async_setup()
 
-    # After a short delay, re-fire discovery signals for any devices that were
-    # discovered before platforms finished subscribing to the signal
+    # After a delay, re-fire discovery signals for any devices that were
+    # discovered before platforms finished subscribing to the signal.
+    # Shelly TRVs are battery-powered and may take time to wake up and publish settings.
     async def _async_fire_delayed_discovery():
         """Fire discovery signals for existing devices after delay."""
         import asyncio
-        await asyncio.sleep(5)  # Wait for MQTT retained messages to arrive
+        _LOGGER.info("Waiting 15 seconds for Shelly devices to publish settings...")
+        await asyncio.sleep(15)  # Wait for devices to wake up and publish settings
         await mqtt_discovery.async_fire_discovery_for_existing_devices()
 
     hass.async_create_task(_async_fire_delayed_discovery())

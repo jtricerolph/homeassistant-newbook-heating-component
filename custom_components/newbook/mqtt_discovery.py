@@ -89,6 +89,11 @@ class MQTTDiscoveryManager:
 
             device_id = topic_parts[1]
 
+            # Skip empty messages (retained messages when device is offline)
+            if not msg.payload or msg.payload == b'':
+                _LOGGER.debug("Skipping empty settings message for %s", device_id)
+                return
+
             payload = json.loads(msg.payload)
             _LOGGER.debug("Received Shelly settings for %s: name=%s", device_id, payload.get("name"))
 
@@ -845,19 +850,36 @@ class MQTTDiscoveryManager:
         are created for devices that were discovered before platforms
         subscribed to the discovery signal.
         """
+        _LOGGER.info(
+            "Checking for existing mapped devices to re-fire discovery signals "
+            "(mapped=%d, detector has %d devices)",
+            len(self._mapped_devices),
+            len(self.detector.get_all_devices()),
+        )
+
+        if not self._mapped_devices:
+            _LOGGER.info("No mapped devices found, nothing to re-fire")
+            return
+
+        fired_count = 0
         for device_id, mapping in self._mapped_devices.items():
             device = self.detector.get_device(device_id)
             if not device:
+                _LOGGER.warning(
+                    "Device %s is mapped but not in detector - skipping discovery signal",
+                    device_id,
+                )
                 continue
 
             site_id = mapping["site_id"]
             location = mapping["location"]
 
             _LOGGER.info(
-                "Re-firing discovery signal for existing device %s (room %s %s)",
+                "Re-firing discovery signal for existing device %s (room %s %s, mac=%s)",
                 device_id,
                 site_id,
                 location,
+                device.mac,
             )
 
             async_dispatcher_send(
@@ -871,3 +893,6 @@ class MQTTDiscoveryManager:
                     "device_id": device_id,
                 },
             )
+            fired_count += 1
+
+        _LOGGER.info("Re-fired discovery signals for %d devices", fired_count)
