@@ -91,7 +91,10 @@ async def async_setup_entry(
         mac = discovery_info["mac"]
         device_id = discovery_info["device_id"]
 
-        _LOGGER.info("Creating TRV settings switches for %s", entity_id)
+        _LOGGER.info(
+            "Creating TRV settings switches for %s (mac=%s, device_id=%s)",
+            entity_id, mac, device_id
+        )
 
         entities = [
             TRVScreenRotationSwitch(

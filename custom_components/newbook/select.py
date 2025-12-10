@@ -47,6 +47,7 @@ async def async_setup_entry(
         """Handle TRV discovery."""
         entity_id = discovery_info["entity_id"]
         if entity_id in discovered_trvs:
+            _LOGGER.debug("TRV %s already has select entity, skipping", entity_id)
             return
 
         site_id = discovery_info["site_id"]
@@ -54,7 +55,10 @@ async def async_setup_entry(
         mac = discovery_info["mac"]
         device_id = discovery_info["device_id"]
 
-        _LOGGER.info("Creating select entity for TRV %s", entity_id)
+        _LOGGER.info(
+            "Creating select entity for TRV %s (mac=%s, device_id=%s)",
+            entity_id, mac, device_id
+        )
 
         entities = [
             TRVBrightnessSelect(
