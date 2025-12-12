@@ -184,10 +184,30 @@ class TRVHealth:
         self.ha_last_command_time = datetime.now()
 
     def update_from_status(self, target_temp: float) -> None:
-        """Update from device status message."""
+        """Update from device status message.
+
+        Also tracks response time if this status confirms a recent HA command.
+        """
+        now = datetime.now()
+
+        # Check if this status confirms a recent HA command (within 5 minutes)
+        if (self.ha_last_command_temp is not None and
+            self.ha_last_command_time is not None and
+            abs(target_temp - self.ha_last_command_temp) < 0.1):
+            # Target matches what HA commanded - calculate response time
+            time_since_command = (now - self.ha_last_command_time).total_seconds()
+
+            # Only count as a response if within reasonable time window (5 min)
+            if time_since_command < 300:
+                self.record_response(time_since_command, success=True)
+                self.record_command_ack(time_since_command)
+                # Clear the pending command to avoid double-counting
+                self.ha_last_command_temp = None
+                self.ha_last_command_time = None
+
         self.current_target_temp = target_temp
-        self.status_update_time = datetime.now()
-        self.last_seen = datetime.now()
+        self.status_update_time = now
+        self.last_seen = now
 
     @property
     def target_temp_origin(self) -> str:
