@@ -863,9 +863,16 @@ class NewbookTRVTargetTempSensor(SensorEntity):
 
     @property
     def native_value(self) -> float | None:
-        """Return the current target temperature from device status."""
+        """Return the target temperature.
+
+        If there's a pending HA command, show that (immediate feedback).
+        Otherwise show the current temp from device status.
+        """
         health = self._get_trv_health()
         if health:
+            # Show pending command temp for immediate feedback
+            if health.ha_pending_command_temp is not None:
+                return health.ha_pending_command_temp
             return health.current_target_temp
         return None
 
@@ -883,6 +890,7 @@ class NewbookTRVTargetTempSensor(SensorEntity):
 
         return {
             "origin": health.target_temp_origin,
+            "device_reported_temp": health.current_target_temp,
             "ha_last_acked_temp": health.ha_last_acked_temp,
             "ha_pending_command": health.ha_pending_command_temp,
             "ha_pending_command_time": (
