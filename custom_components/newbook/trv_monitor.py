@@ -216,14 +216,27 @@ class TRVHealth:
 
     @property
     def target_temp_origin(self) -> str:
-        """Determine if current target was set by HA or guest."""
+        """Determine if current target was set by HA or guest.
+
+        Returns:
+            "automation" - TRV target matches what HA set
+            "pending" - HA command sent, waiting for TRV acknowledgment
+            "guest" - TRV target was set by guest (different from HA)
+            "unknown" - No status received yet
+        """
         if self.current_target_temp is None:
             return "unknown"
-        # Check pending command first (command sent but not yet acknowledged)
+
+        # Check if there's a pending command waiting for acknowledgment
         if self.ha_pending_command_temp is not None:
             if abs(self.current_target_temp - self.ha_pending_command_temp) < 0.1:
+                # TRV already shows the commanded temp (fast response)
                 return "automation"
-        # Check last acknowledged command
+            else:
+                # Command sent but TRV hasn't acknowledged yet
+                return "pending"
+
+        # No pending command - check last acknowledged command
         if self.ha_last_acked_temp is None:
             return "guest"  # No HA command ever acknowledged
         if abs(self.current_target_temp - self.ha_last_acked_temp) < 0.1:
