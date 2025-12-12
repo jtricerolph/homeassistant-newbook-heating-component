@@ -199,7 +199,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Check if this was an HA command or a guest change
         health = trv_monitor.get_trv_health(entity_id)
-        ha_commanded_temp = health.ha_last_command_temp
+
+        # Check both pending and acknowledged HA commands
+        ha_commanded_temp = health.ha_pending_command_temp or health.ha_last_acked_temp
 
         # If the new temp matches what HA commanded, it's not a guest change
         if ha_commanded_temp is not None and abs(float(new_temp) - ha_commanded_temp) < 0.1:
