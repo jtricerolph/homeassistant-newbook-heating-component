@@ -883,10 +883,11 @@ class NewbookTRVTargetTempSensor(SensorEntity):
 
         return {
             "origin": health.target_temp_origin,
-            "ha_last_command": health.ha_last_command_temp,
-            "ha_command_time": (
-                health.ha_last_command_time.isoformat()
-                if health.ha_last_command_time
+            "ha_last_acked_temp": health.ha_last_acked_temp,
+            "ha_pending_command": health.ha_pending_command_temp,
+            "ha_pending_command_time": (
+                health.ha_pending_command_time.isoformat()
+                if health.ha_pending_command_time
                 else None
             ),
             "status_update_time": (

@@ -256,7 +256,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def _async_time_based_update(_now=None):
         """Handle time-based room state updates."""
         _LOGGER.debug("Time-based update triggered (every 1 minute)")
-        await heating_controller.async_update_all_rooms()
+        # Use async_create_task to avoid blocking the time tracker
+        # TRV commands can have long timeouts due to retry logic
+        hass.async_create_task(heating_controller.async_update_all_rooms())
 
     # Track time every 1 minute
     remove_time_tracker = async_track_time_interval(

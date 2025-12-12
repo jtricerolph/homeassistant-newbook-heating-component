@@ -79,9 +79,12 @@ class TRVHealth:
         # Each entry: (timestamp, response_time_seconds, success)
         self.response_history: list[tuple[datetime, float, bool]] = []
 
-        # Track HA commands for origin detection
-        self.ha_last_command_temp: float | None = None
-        self.ha_last_command_time: datetime | None = None
+        # Track HA commands for response time and origin detection
+        # Pending command (cleared after acknowledgment, used for response time)
+        self.ha_pending_command_temp: float | None = None
+        self.ha_pending_command_time: datetime | None = None
+        # Last acknowledged HA command (kept for origin detection)
+        self.ha_last_acked_temp: float | None = None
         self.current_target_temp: float | None = None
         self.status_update_time: datetime | None = None
 
@@ -180,8 +183,8 @@ class TRVHealth:
 
     def record_ha_command(self, target_temp: float) -> None:
         """Record when HA sends a command."""
-        self.ha_last_command_temp = target_temp
-        self.ha_last_command_time = datetime.now()
+        self.ha_pending_command_temp = target_temp
+        self.ha_pending_command_time = datetime.now()
 
     def update_from_status(self, target_temp: float) -> None:
         """Update from device status message.
@@ -191,19 +194,21 @@ class TRVHealth:
         now = datetime.now()
 
         # Check if this status confirms a recent HA command (within 5 minutes)
-        if (self.ha_last_command_temp is not None and
-            self.ha_last_command_time is not None and
-            abs(target_temp - self.ha_last_command_temp) < 0.1):
+        if (self.ha_pending_command_temp is not None and
+            self.ha_pending_command_time is not None and
+            abs(target_temp - self.ha_pending_command_temp) < 0.1):
             # Target matches what HA commanded - calculate response time
-            time_since_command = (now - self.ha_last_command_time).total_seconds()
+            time_since_command = (now - self.ha_pending_command_time).total_seconds()
 
             # Only count as a response if within reasonable time window (5 min)
             if time_since_command < 300:
                 self.record_response(time_since_command, success=True)
                 self.record_command_ack(time_since_command)
-                # Clear the pending command to avoid double-counting
-                self.ha_last_command_temp = None
-                self.ha_last_command_time = None
+                # Save the acknowledged temp for origin detection
+                self.ha_last_acked_temp = self.ha_pending_command_temp
+                # Clear the pending command to avoid double-counting response times
+                self.ha_pending_command_temp = None
+                self.ha_pending_command_time = None
 
         self.current_target_temp = target_temp
         self.status_update_time = now
@@ -214,9 +219,14 @@ class TRVHealth:
         """Determine if current target was set by HA or guest."""
         if self.current_target_temp is None:
             return "unknown"
-        if self.ha_last_command_temp is None:
-            return "guest"  # No HA command ever sent
-        if abs(self.current_target_temp - self.ha_last_command_temp) < 0.1:
+        # Check pending command first (command sent but not yet acknowledged)
+        if self.ha_pending_command_temp is not None:
+            if abs(self.current_target_temp - self.ha_pending_command_temp) < 0.1:
+                return "automation"
+        # Check last acknowledged command
+        if self.ha_last_acked_temp is None:
+            return "guest"  # No HA command ever acknowledged
+        if abs(self.current_target_temp - self.ha_last_acked_temp) < 0.1:
             return "automation"
         return "guest"  # Target differs from what HA commanded
 

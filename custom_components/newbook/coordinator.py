@@ -400,11 +400,12 @@ class NewbookDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Update heating controller FIRST, BEFORE notifying sensors
             # This ensures _room_states is current when sensors read it
+            # Use async_create_task to avoid blocking - TRV commands can have long timeouts
             for entry_id, data in self.hass.data.get(DOMAIN, {}).items():
                 if isinstance(data, dict) and "heating_controller" in data:
                     heating_controller = data["heating_controller"]
-                    _LOGGER.debug("Updating heating controller room states before notifying sensors")
-                    await heating_controller.async_update_all_rooms()
+                    _LOGGER.debug("Updating heating controller room states (background)")
+                    self.hass.async_create_task(heating_controller.async_update_all_rooms())
                     break
 
             # Now notify sensors (they will read the updated _room_states)
